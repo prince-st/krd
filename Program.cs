@@ -7,12 +7,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Controllers (for Excel download endpoints)
+builder.Services.AddControllers();
+
 // EF Core SQLite — configuration is handled in AppDbContext.OnConfiguring
 builder.Services.AddDbContext<AppDbContext>();
 
 // Auth session
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped<ExcelExportService>();
 
 // Session support
 builder.Services.AddHttpContextAccessor();
@@ -30,6 +34,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.MapControllers();
 
 app.MapRazorComponents<KRD.AttendanceWeb.Components.App>()
     .AddInteractiveServerRenderMode();

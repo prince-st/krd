@@ -12,9 +12,15 @@
         <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Employee Management</h4>
         <p style="color:#6666aa; font-size:0.83rem; margin:4px 0 0;">@employees.Count total · @employees.Count(e => e.IsActive) active</p>
     </div>
-    <button @onclick="() => OpenDialog(null)" style="padding:9px 18px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
-        <i class="bi bi-plus-lg me-2"></i>Add Employee
-    </button>
+    <div class="d-flex gap-2">
+        <a href="/api/export/employees" target="_blank"
+           style="padding:9px 16px; background:linear-gradient(135deg,#22c55e,#16a34a); border-radius:8px; color:white; font-weight:700; font-size:0.85rem; text-decoration:none; display:flex; align-items:center; gap:6px;">
+            <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+        </a>
+        <button @onclick="() => OpenDialog(null)" style="padding:9px 18px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+            <i class="bi bi-plus-lg me-2"></i>Add Employee
+        </button>
+    </div>
 </div>
 
 <!-- Search + Filter bar -->

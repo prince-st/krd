@@ -12,6 +12,11 @@
         <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Attendance Reports</h4>
         <p style="color:#6666aa; font-size:0.85rem; margin:4px 0 0;">Overview and detailed attendance analytics</p>
     </div>
+    <a href="/api/export/attendance?from=@from.ToString("yyyy-MM-dd")&to=@to.ToString("yyyy-MM-dd")&empId=@filterEmpId"
+       target="_blank"
+       style="padding:10px 20px; background:linear-gradient(135deg,#22c55e,#16a34a); border-radius:8px; color:white; font-weight:700; font-size:0.88rem; text-decoration:none; display:flex; align-items:center; gap:8px;">
+        <i class="bi bi-file-earmark-excel-fill" style="font-size:1.1rem;"></i> Download Excel
+    </a>
 </div>
 
 <!-- Summary Cards -->
