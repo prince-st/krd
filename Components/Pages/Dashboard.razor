@@ -2,7 +2,7 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-@rendermode InteractiveServer
+
 
 @if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
