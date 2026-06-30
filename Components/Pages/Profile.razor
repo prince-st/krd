@@ -1,0 +1,307 @@
+@page "/profile"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@using KRD.AttendanceWeb.Models
+@using AttRec = KRD.AttendanceWeb.Models.Attendance
+
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
+
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">My Profile</h4>
+
+<div class="row g-4">
+
+    <!-- Profile Card -->
+    <div class="col-md-4">
+        <div style="background:#1a1a2e; border-radius:12px; padding:32px; border:1px solid #2a2a4a; text-align:center;">
+            <div style="width:90px; height:90px; border-radius:50%; background:linear-gradient(135deg,#4361ee,#7209b7); display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:800; color:white; margin:0 auto 16px;">
+                @GetInitials()
+            </div>
+            <h5 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">@FullName()</h5>
+            <div style="color:#4361ee; font-size:0.85rem; font-weight:600; margin-bottom:4px;">@Auth.Role</div>
+            @if (Auth.IsEmployeeLoggedIn)
+            {
+                <div style="color:#8888aa; font-size:0.82rem; margin-bottom:4px;">@Auth.CurrentEmployee!.EmployeeId</div>
+                <div style="color:#8888aa; font-size:0.82rem; margin-bottom:16px;">@Auth.CurrentEmployee!.Department?.Name</div>
+                <div style="background:#0f0f1a; border-radius:8px; padding:12px; text-align:left;">
+                    <div style="color:#6666aa; font-size:0.75rem; font-weight:600; margin-bottom:8px; text-transform:uppercase;">Quick Info</div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span style="color:#8888aa; font-size:0.82rem;">Position</span>
+                        <span style="color:#e0e0ff; font-size:0.82rem; font-weight:600;">@Auth.CurrentEmployee!.Position</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span style="color:#8888aa; font-size:0.82rem;">Join Date</span>
+                        <span style="color:#e0e0ff; font-size:0.82rem;">@Auth.CurrentEmployee!.JoinDate.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span style="color:#8888aa; font-size:0.82rem;">Phone</span>
+                        <span style="color:#e0e0ff; font-size:0.82rem;">@(string.IsNullOrEmpty(Auth.CurrentEmployee!.Phone) ? "—" : Auth.CurrentEmployee!.Phone)</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- This Month Stats -->
+        @if (Auth.IsEmployeeLoggedIn)
+        {
+            <div style="background:#1a1a2e; border-radius:12px; padding:20px; border:1px solid #2a2a4a; margin-top:16px;">
+                <div style="color:#6666aa; font-size:0.75rem; font-weight:600; margin-bottom:14px; text-transform:uppercase;">This Month</div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:12px; text-align:center;">
+                            <div style="color:#22c55e; font-size:1.5rem; font-weight:800;">@empPresent</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">Present</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:12px; text-align:center;">
+                            <div style="color:#f59e0b; font-size:1.5rem; font-weight:800;">@empLate</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">Late</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:12px; text-align:center;">
+                            <div style="color:#ef4444; font-size:1.5rem; font-weight:800;">@empAbsent</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">Absent</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:12px; text-align:center;">
+                            <div style="color:#818cf8; font-size:1.5rem; font-weight:800;">@($"{empHours:F0}")h</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">Hours</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Edit Profile -->
+    <div class="col-md-8">
+        <div style="background:#1a1a2e; border-radius:12px; padding:28px; border:1px solid #2a2a4a;">
+            <h6 style="color:#4361ee; font-weight:700; margin-bottom:20px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px;">
+                <i class="bi bi-person-gear me-2"></i>Edit Profile
+            </h6>
+
+            @if (saved)
+            {
+                <div style="background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:10px 16px; margin-bottom:16px; color:#22c55e; font-size:0.88rem;">
+                    <i class="bi bi-check-circle-fill me-2"></i>Profile updated successfully!
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 16px; margin-bottom:16px; color:#ef4444; font-size:0.88rem;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@error
+                </div>
+            }
+
+            @if (Auth.IsEmployeeLoggedIn)
+            {
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Full Name</label>
+                        <input @bind="editName" style="@InputStyle" />
+                    </div>
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Email</label>
+                        <input @bind="editEmail" type="email" style="@InputStyle" />
+                    </div>
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Phone</label>
+                        <input @bind="editPhone" style="@InputStyle" />
+                    </div>
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Employee ID</label>
+                        <input value="@Auth.CurrentEmployee!.EmployeeId" disabled style="@InputStyle opacity:0.5;" />
+                    </div>
+                </div>
+
+                <div style="margin-top:24px; padding-top:20px; border-top:1px solid #2a2a4a;">
+                    <h6 style="color:#4361ee; font-weight:700; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px;">
+                        <i class="bi bi-shield-lock me-2"></i>Change Password
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">Current Password</label>
+                            <input @bind="currentPwd" type="password" style="@InputStyle" />
+                        </div>
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">New Password</label>
+                            <input @bind="newPwd" type="password" style="@InputStyle" />
+                        </div>
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">Confirm Password</label>
+                            <input @bind="confirmPwd" type="password" style="@InputStyle" />
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Admin profile edit -->
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Full Name</label>
+                        <input @bind="editName" style="@InputStyle" />
+                    </div>
+                    <div class="col-md-6">
+                        <label style="@LabelStyle">Email</label>
+                        <input @bind="editEmail" type="email" style="@InputStyle" />
+                    </div>
+                </div>
+                <div style="margin-top:24px; padding-top:20px; border-top:1px solid #2a2a4a;">
+                    <h6 style="color:#4361ee; font-weight:700; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase;">
+                        <i class="bi bi-shield-lock me-2"></i>Change Password
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">Current Password</label>
+                            <input @bind="currentPwd" type="password" style="@InputStyle" />
+                        </div>
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">New Password</label>
+                            <input @bind="newPwd" type="password" style="@InputStyle" />
+                        </div>
+                        <div class="col-md-4">
+                            <label style="@LabelStyle">Confirm Password</label>
+                            <input @bind="confirmPwd" type="password" style="@InputStyle" />
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex gap-3 mt-4">
+                <button @onclick="SaveProfile"
+                        style="padding:11px 28px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">
+                    <i class="bi bi-check-lg me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Attendance (employee only) -->
+        @if (Auth.IsEmployeeLoggedIn && recentAtt.Any())
+        {
+            <div style="background:#1a1a2e; border-radius:12px; padding:24px; border:1px solid #2a2a4a; margin-top:20px;">
+                <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:16px;">
+                    <i class="bi bi-clock-history me-2" style="color:#4361ee;"></i>Recent Attendance (Last 10 Days)
+                </h6>
+                <table class="table table-dark table-sm mb-0" style="font-size:0.83rem;">
+                    <thead><tr style="color:#6666aa; font-size:0.75rem; text-transform:uppercase;">
+                        <th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th>
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var a in recentAtt)
+                        {
+                            <tr style="color:#c0c0e0;">
+                                <td>@a.Date.ToString("MMM dd, ddd")</td>
+                                <td style="color:#22c55e;">@(a.CheckInTime?.ToString("hh:mm tt") ?? "—")</td>
+                                <td style="color:#4361ee;">@(a.CheckOutTime?.ToString("hh:mm tt") ?? "—")</td>
+                                <td style="color:#818cf8;">@(a.WorkingHours > 0 ? $"{a.WorkingHours:F1}h" : "—")</td>
+                                <td><StatusBadge Status="@a.Status.ToString()"/></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string editName = "", editEmail = "", editPhone = "";
+    private string currentPwd = "", newPwd = "", confirmPwd = "";
+    private bool saved;
+    private string error = "";
+    private int empPresent, empLate, empAbsent;
+    private double empHours;
+    private List<AttRec> recentAtt = new();
+
+    private string InputStyle => "width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;";
+    private string LabelStyle => "color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;";
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAdminLoggedIn)
+        {
+            editName  = Auth.CurrentAdmin!.FullName;
+            editEmail = Auth.CurrentAdmin!.Email;
+        }
+        else if (Auth.IsEmployeeLoggedIn)
+        {
+            var emp   = Auth.CurrentEmployee!;
+            editName  = emp.FullName;
+            editEmail = emp.Email;
+            editPhone = emp.Phone;
+
+            var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var recs  = Svc.GetAttendanceByEmployee(emp.Id, start, DateTime.Today);
+            empPresent = recs.Count(r => r.Status == AttendanceStatus.Present || r.Status == AttendanceStatus.Late);
+            empLate    = recs.Count(r => r.IsLate);
+            empHours   = recs.Sum(r => r.WorkingHours);
+            empAbsent  = Math.Max(0, DateTime.Today.Day - empPresent);
+            recentAtt  = Svc.GetAttendanceByEmployee(emp.Id, DateTime.Today.AddDays(-10), DateTime.Today);
+        }
+    }
+
+    private string FullName() => Auth.IsAdminLoggedIn
+        ? Auth.CurrentAdmin!.FullName : Auth.CurrentEmployee!.FullName;
+
+    private string GetInitials()
+    {
+        var parts = FullName().Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return "?";
+        return parts.Length == 1 ? parts[0][0].ToString().ToUpper()
+            : $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+
+    private void SaveProfile()
+    {
+        error = ""; saved = false;
+
+        if (string.IsNullOrWhiteSpace(editName) || string.IsNullOrWhiteSpace(editEmail))
+        { error = "Name and Email are required."; return; }
+
+        // Password change
+        if (!string.IsNullOrEmpty(newPwd))
+        {
+            if (newPwd != confirmPwd) { error = "New passwords do not match."; return; }
+            if (newPwd.Length < 6) { error = "Password must be at least 6 characters."; return; }
+
+            if (Auth.IsAdminLoggedIn)
+            {
+                if (!BCrypt.Net.BCrypt.Verify(currentPwd, Auth.CurrentAdmin!.PasswordHash))
+                { error = "Current password is incorrect."; return; }
+            }
+            else
+            {
+                if (!BCrypt.Net.BCrypt.Verify(currentPwd, Auth.CurrentEmployee!.PasswordHash))
+                { error = "Current password is incorrect."; return; }
+            }
+        }
+
+        Svc.UpdateProfile(
+            Auth.IsAdminLoggedIn ? 0 : Auth.CurrentEmployee!.Id,
+            Auth.IsAdminLoggedIn,
+            editName, editEmail, editPhone,
+            string.IsNullOrEmpty(newPwd) ? null : newPwd,
+            currentPwd);
+
+        // Update in-memory object
+        if (Auth.IsAdminLoggedIn)
+        {
+            Auth.CurrentAdmin!.FullName = editName;
+            Auth.CurrentAdmin!.Email = editEmail;
+        }
+        else
+        {
+            Auth.CurrentEmployee!.FullName = editName;
+            Auth.CurrentEmployee!.Email = editEmail;
+            Auth.CurrentEmployee!.Phone = editPhone;
+        }
+
+        currentPwd = newPwd = confirmPwd = "";
+        saved = true;
+        _ = Task.Delay(3000).ContinueWith(_ => { saved = false; InvokeAsync(StateHasChanged); });
+    }
+}

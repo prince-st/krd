@@ -32,17 +32,17 @@ else
             <nav style="flex:1; padding:10px 0; overflow-y:auto;">
                 @if (Auth.IsAdminLoggedIn)
                 {
-                    <NavItem Icon="bi-speedometer2" Text="Dashboard"    Href="/"            />
-                    <NavItem Icon="bi-people"       Text="Employees"    Href="/employees"   />
-                    <NavItem Icon="bi-calendar-check" Text="Attendance" Href="/attendance"  />
-                    <NavItem Icon="bi-calendar-x"  Text="Leave Requests" Href="/leaves"    />
-                    <NavItem Icon="bi-balloon"     Text="Holidays"     Href="/holidays"     />
-                    <NavItem Icon="bi-bar-chart"   Text="Reports"      Href="/reports"      />
-                    <NavItem Icon="bi-gear"        Text="Settings"     Href="/settings"     />
+                    <NavItem Icon="bi-speedometer2"   Text="Dashboard"      Href="/dashboard"   />
+                    <NavItem Icon="bi-people"         Text="Employees"      Href="/employees"   />
+                    <NavItem Icon="bi-calendar-check" Text="Attendance"     Href="/attendance"  />
+                    <NavItem Icon="bi-calendar-x"     Text="Leave Requests" Href="/leaves"      />
+                    <NavItem Icon="bi-balloon"        Text="Holidays"       Href="/holidays"    />
+                    <NavItem Icon="bi-bar-chart-line" Text="Reports"        Href="/reports"     />
+                    <NavItem Icon="bi-gear"           Text="Settings"       Href="/settings"    />
                 }
                 else
                 {
-                    <NavItem Icon="bi-speedometer2" Text="Dashboard"   Href="/"             />
+                    <NavItem Icon="bi-speedometer2" Text="Dashboard"    Href="/dashboard"   />
                     <NavItem Icon="bi-clock"        Text="Check In/Out" Href="/checkinout"  />
                     <NavItem Icon="bi-calendar3"    Text="My Attendance" Href="/myattendance"/>
                     <NavItem Icon="bi-send"         Text="Apply Leave"  Href="/applyleave"  />

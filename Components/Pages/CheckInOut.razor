@@ -2,53 +2,205 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-
 @using AttRec = KRD.AttendanceWeb.Models.Attendance
+@implements IDisposable
 
-@if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
+@if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
-<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">Check In / Check Out</h4>
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:8px;">Check In / Check Out</h4>
+<p style="color:#6666aa; margin-bottom:28px;">Mark your daily attendance</p>
 
-<div style="max-width:520px;">
-    <div style="background:#1a1a2e; border-radius:12px; padding:32px; border:1px solid #2a2a4a;">
-        <div style="color:#6666aa; font-size:0.9rem; margin-bottom:6px;">@DateTime.Now.ToString("dddd, MMMM dd, yyyy")</div>
-        <div style="color:#4361ee; font-size:2.5rem; font-weight:800; margin-bottom:20px; font-family:monospace;">@currentTime</div>
+<div class="row g-4">
+    <!-- Main Card -->
+    <div class="col-md-6">
+        <div style="background:#1a1a2e; border-radius:14px; padding:36px; border:1px solid #2a2a4a; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
 
-        @if (att != null)
-        {
-            <div style="margin-bottom:16px; color:#8888aa; font-size:0.9rem;">
-                Checked in at: <span style="color:#22c55e; font-weight:600;">@att.CheckInTime?.ToString("hh:mm tt")</span>
+            <!-- Date & Live Clock -->
+            <div style="color:#6666aa; font-size:0.88rem; margin-bottom:6px;">
+                <i class="bi bi-calendar3 me-2"></i>@DateTime.Now.ToString("dddd, MMMM dd, yyyy")
             </div>
-            @if (att.CheckOutTime != null)
+            <div style="color:#4361ee; font-size:3rem; font-weight:900; margin-bottom:24px; font-family:monospace; letter-spacing:2px;">
+                @currentTime
+            </div>
+
+            <!-- Status indicator -->
+            <div style="background:#0f0f1a; border-radius:10px; padding:16px; margin-bottom:24px;">
+                @if (att == null)
+                {
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#6666aa;"></div>
+                        <span style="color:#8888aa; font-size:0.95rem;">Not checked in today</span>
+                    </div>
+                }
+                else if (att.CheckOutTime == null)
+                {
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></div>
+                            <div>
+                                <div style="color:#22c55e; font-weight:700; font-size:0.95rem;">Currently Working</div>
+                                <div style="color:#6666aa; font-size:0.78rem; margin-top:2px;">
+                                    Checked in at <strong style="color:#e0e0ff;">@att.CheckInTime?.ToString("hh:mm tt")</strong>
+                                    @if (att.IsLate) { <span style="color:#f59e0b;"> — Late by @att.LateMinutes min</span> }
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#4361ee; font-size:1.4rem; font-weight:800;">@elapsedTime</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">worked so far</div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                            <div style="width:10px; height:10px; border-radius:50%; background:#4361ee;"></div>
+                            <span style="color:#818cf8; font-weight:700;">Shift Completed</span>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
+                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">CHECK IN</div>
+                                    <div style="color:#22c55e; font-weight:700;">@att.CheckInTime?.ToString("hh:mm tt")</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
+                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">CHECK OUT</div>
+                                    <div style="color:#ef4444; font-weight:700;">@att.CheckOutTime?.ToString("hh:mm tt")</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
+                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">TOTAL HOURS</div>
+                                    <div style="color:#818cf8; font-weight:700; font-size:1.1rem;">@($"{att.WorkingHours:F1}h")</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
+                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">OVERTIME</div>
+                                    <div style="color:#f59e0b; font-weight:700; font-size:1.1rem;">
+                                        @(att.OvertimeHours > 0 ? $"+{att.OvertimeHours:F1}h" : "—")
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(message))
             {
-                <div style="color:#8888aa; font-size:0.9rem; margin-bottom:16px;">
-                    Checked out at: <span style="color:#4361ee; font-weight:600;">@att.CheckOutTime?.ToString("hh:mm tt")</span>
-                    &nbsp;|&nbsp; Worked: <span style="color:#22c55e; font-weight:600;">@($"{att.WorkingHours:F1}h")</span>
+                <div style="padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:0.88rem; display:flex; align-items:center; gap:10px;
+                    background:@(isSuccess ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)");
+                    border:1px solid @(isSuccess ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)");
+                    color:@(isSuccess ? "#22c55e" : "#ef4444");">
+                    <i class="bi @(isSuccess ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")"></i>
+                    @message
                 </div>
             }
-        }
 
-        @if (!string.IsNullOrEmpty(message))
-        {
-            <div style="padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:0.88rem;
-                background:@(isSuccess ? "rgba(34,197,94,0.1)" : "rgba(245,158,11,0.1)");
-                color:@(isSuccess ? "#22c55e" : "#f59e0b");">
-                <i class="bi @(isSuccess ? "bi-check-circle" : "bi-exclamation-circle") me-2"></i>@message
+            <!-- Action Buttons -->
+            <div class="d-flex gap-3">
+                <button @onclick="DoCheckIn"
+                        disabled="@(att != null)"
+                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:@(att == null ? "pointer" : "default"); transition:all 0.2s;
+                            background:@(att == null ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e2a1e");
+                            color:@(att == null ? "white" : "#3a5a3a");
+                            box-shadow:@(att == null ? "0 4px 15px rgba(34,197,94,0.3)" : "none");">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Check In
+                </button>
+                <button @onclick="DoCheckOut"
+                        disabled="@(att == null || att.CheckOutTime != null)"
+                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:@(att != null && att.CheckOutTime == null ? "pointer" : "default"); transition:all 0.2s;
+                            background:@(att != null && att.CheckOutTime == null ? "linear-gradient(135deg,#ef4444,#dc2626)" : "#2a1e1e");
+                            color:@(att != null && att.CheckOutTime == null ? "white" : "#5a3a3a");
+                            box-shadow:@(att != null && att.CheckOutTime == null ? "0 4px 15px rgba(239,68,68,0.3)" : "none");">
+                    <i class="bi bi-box-arrow-left me-2"></i>Check Out
+                </button>
             </div>
-        }
+        </div>
+    </div>
 
-        <div class="d-flex gap-3">
-            <button @onclick="DoCheckIn" disabled="@(att != null)"
-                    style="flex:1; padding:16px; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;
-                        background:@(att == null ? "#22c55e" : "#2a2a4a"); color:@(att == null ? "white" : "#4a4a6a");">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Check In
-            </button>
-            <button @onclick="DoCheckOut" disabled="@(att == null || att.CheckOutTime != null)"
-                    style="flex:1; padding:16px; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;
-                        background:@(att != null && att.CheckOutTime == null ? "#ef4444" : "#2a2a4a");
-                        color:@(att != null && att.CheckOutTime == null ? "white" : "#4a4a6a");">
-                <i class="bi bi-box-arrow-left me-2"></i>Check Out
-            </button>
+    <!-- Office Hours Info -->
+    <div class="col-md-6">
+        <div style="background:#1a1a2e; border-radius:14px; padding:28px; border:1px solid #2a2a4a; margin-bottom:16px;">
+            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:20px;">
+                <i class="bi bi-building me-2" style="color:#4361ee;"></i>Office Hours
+            </h6>
+            <div class="row g-3">
+                <div class="col-6">
+                    <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
+                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Opens</div>
+                        <div style="color:#22c55e; font-size:1.3rem; font-weight:800;">@FormatTime(settings.OfficeStartTime)</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
+                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Closes</div>
+                        <div style="color:#ef4444; font-size:1.3rem; font-weight:800;">@FormatTime(settings.OfficeEndTime)</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
+                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Shift</div>
+                        <div style="color:#818cf8; font-size:1.3rem; font-weight:800;">@settings.RequiredWorkingHours h</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
+                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Grace Time</div>
+                        <div style="color:#f59e0b; font-size:1.3rem; font-weight:800;">@settings.GraceTimeMinutes min</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:16px; padding:12px; background:#0f0f1a; border-radius:8px; display:flex; align-items:center; gap:10px;">
+                <i class="bi bi-info-circle" style="color:#4361ee;"></i>
+                <span style="color:#8888aa; font-size:0.82rem;">
+                    Late mark applies after <strong style="color:#f59e0b;">@FormatTime(settings.OfficeStartTime.Add(TimeSpan.FromMinutes(settings.GraceTimeMinutes)))</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- Weekly Attendance Summary -->
+        <div style="background:#1a1a2e; border-radius:14px; padding:28px; border:1px solid #2a2a4a;">
+            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:20px;">
+                <i class="bi bi-calendar-week me-2" style="color:#4361ee;"></i>This Week
+            </h6>
+            @{
+                var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+            }
+            <div class="d-flex gap-2">
+                @for (int i = 0; i < 7; i++)
+                {
+                    var day = weekStart.AddDays(i);
+                    var dayAtt = weekAtt.FirstOrDefault(a => a.Date.Date == day.Date);
+                    bool isToday = day.Date == DateTime.Today;
+                    bool isFuture = day.Date > DateTime.Today;
+                    bool isWeekend = day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday;
+                    string bg = isFuture || isWeekend ? "#0f0f1a" :
+                                dayAtt?.Status == Models.AttendanceStatus.Present ? "rgba(34,197,94,0.15)" :
+                                dayAtt?.Status == Models.AttendanceStatus.Late ? "rgba(245,158,11,0.15)" :
+                                dayAtt?.IsEarlyExit == true ? "rgba(6,182,212,0.15)" :
+                                dayAtt != null ? "rgba(67,97,238,0.15)" : "rgba(239,68,68,0.1)";
+                    string col = isFuture || isWeekend ? "#4a4a6a" :
+                                 dayAtt?.Status == Models.AttendanceStatus.Present ? "#22c55e" :
+                                 dayAtt?.Status == Models.AttendanceStatus.Late ? "#f59e0b" :
+                                 dayAtt?.IsEarlyExit == true ? "#06b6d4" :
+                                 dayAtt != null ? "#818cf8" : "#ef4444";
+                    <div style="flex:1; background:@bg; border-radius:8px; padding:10px 4px; text-align:center; border:@(isToday ? "1px solid #4361ee" : "1px solid transparent");">
+                        <div style="color:#6666aa; font-size:0.65rem; margin-bottom:4px;">@day.ToString("ddd")[..2]</div>
+                        <div style="color:@col; font-size:0.7rem; font-weight:700;">@day.Day</div>
+                        <div style="margin-top:4px; font-size:0.6rem; color:@col;">
+                            @if (isWeekend) { <span>Off</span> }
+                            else if (isFuture) { <span style="color:#3a3a6a;">—</span> }
+                            else if (dayAtt == null) { <span>Abs</span> }
+                            else { <span>@dayAtt.Status.ToString()[..3]</span> }
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -56,37 +208,63 @@
 @code {
     private AttRec? att;
     private string currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+    private string elapsedTime = "";
     private string message = "";
     private bool isSuccess;
     private System.Threading.Timer? _timer;
+    private Models.CompanySettings settings = new();
+    private List<AttRec> weekAtt = new();
 
     protected override void OnInitialized()
     {
         if (!Auth.IsEmployeeLoggedIn) return;
-        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        settings = Svc.GetSettings();
+        Refresh();
+        var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+        weekAtt = Svc.GetAttendanceByEmployee(Auth.CurrentEmployee!.Id, weekStart, weekStart.AddDays(6));
         _timer = new System.Threading.Timer(_ =>
         {
             currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+            if (att?.CheckInTime != null && att.CheckOutTime == null)
+            {
+                var elapsed = DateTime.Now - att.CheckInTime.Value;
+                elapsedTime = $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+            }
             InvokeAsync(StateHasChanged);
         }, null, 0, 1000);
+    }
+
+    private void Refresh()
+    {
+        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
     }
 
     private void DoCheckIn()
     {
         bool ok = Svc.CheckIn(Auth.CurrentEmployee!.Id);
-        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        Refresh();
         isSuccess = ok;
-        message = ok ? $"✔ Checked in at {DateTime.Now:hh:mm tt}{(att?.IsLate == true ? $" (Late by {att.LateMinutes}min)" : "")}"
-                     : "Already checked in today.";
+        if (ok)
+        {
+            var lateMsg = att?.IsLate == true ? $" — Late by {att.LateMinutes} min" : "";
+            message = $"Checked in at {att?.CheckInTime?.ToString("hh:mm tt")}{lateMsg}";
+        }
+        else
+            message = "You have already checked in today.";
     }
 
     private void DoCheckOut()
     {
         bool ok = Svc.CheckOut(Auth.CurrentEmployee!.Id);
-        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        Refresh();
         isSuccess = ok;
-        message = ok ? $"✔ Checked out at {DateTime.Now:hh:mm tt} — {att?.WorkingHours:F1}h worked" : "Failed to check out.";
+        if (ok)
+            message = $"Checked out at {att?.CheckOutTime?.ToString("hh:mm tt")} — {att?.WorkingHours:F1}h worked";
+        else
+            message = "Check out failed. Please try again.";
     }
+
+    private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
 
     public void Dispose() => _timer?.Dispose();
 }

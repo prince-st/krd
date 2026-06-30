@@ -158,4 +158,56 @@ public class AttendanceService
         _db.Employees.Count(e => e.IsActive);
     public int PendingLeaves() =>
         _db.Leaves.Count(l => l.Status == LeaveStatus.Pending);
+
+    // ── Settings ───────────────────────────────────────────────────────
+    public void SaveSettings(CompanySettings updated)
+    {
+        var existing = _db.CompanySettings.FirstOrDefault();
+        if (existing == null) { _db.CompanySettings.Add(updated); }
+        else
+        {
+            existing.CompanyName          = updated.CompanyName;
+            existing.CompanyEmail         = updated.CompanyEmail;
+            existing.CompanyPhone         = updated.CompanyPhone;
+            existing.CompanyAddress       = updated.CompanyAddress;
+            existing.OfficeStartTimeTicks = updated.OfficeStartTimeTicks;
+            existing.OfficeEndTimeTicks   = updated.OfficeEndTimeTicks;
+            existing.RequiredWorkingHours = updated.RequiredWorkingHours;
+            existing.GraceTimeMinutes     = updated.GraceTimeMinutes;
+            existing.LateEntryMinutes     = updated.LateEntryMinutes;
+            existing.WeeklyHolidayDays    = updated.WeeklyHolidayDays;
+            existing.Theme                = updated.Theme;
+            existing.UpdatedAt            = DateTime.Now;
+        }
+        _db.SaveChanges();
+    }
+
+    // ── Profile Update ─────────────────────────────────────────────────
+    public bool UpdateProfile(int empId, bool isAdmin, string name, string email, string phone,
+                              string? newPassword, string currentPassword)
+    {
+        if (isAdmin)
+        {
+            var admin = _db.Admins.FirstOrDefault();
+            if (admin == null) return false;
+            admin.FullName = name;
+            admin.Email    = email;
+            if (!string.IsNullOrEmpty(newPassword))
+                admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            _db.SaveChanges();
+            return true;
+        }
+        else
+        {
+            var emp = _db.Employees.Find(empId);
+            if (emp == null) return false;
+            emp.FullName = name;
+            emp.Email    = email;
+            emp.Phone    = phone;
+            if (!string.IsNullOrEmpty(newPassword))
+                emp.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            _db.SaveChanges();
+            return true;
+        }
+    }
 }

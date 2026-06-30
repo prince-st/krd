@@ -1,0 +1,192 @@
+@page "/settings"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Company Settings</h4>
+        <p style="color:#6666aa; font-size:0.85rem; margin:4px 0 0;">Configure office hours, attendance rules and company info</p>
+    </div>
+</div>
+
+@if (saved)
+{
+    <div style="background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:12px 18px; margin-bottom:20px; color:#22c55e; font-size:0.9rem;">
+        <i class="bi bi-check-circle-fill me-2"></i>Settings saved successfully!
+    </div>
+}
+
+<div class="row g-4">
+
+    <!-- Company Info -->
+    <div class="col-12">
+        <div style="background:#1a1a2e; border-radius:12px; padding:28px; border:1px solid #2a2a4a;">
+            <h6 style="color:#4361ee; font-weight:700; margin-bottom:20px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px;">
+                <i class="bi bi-building me-2"></i>Company Information
+            </h6>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Company Name</label>
+                    <input @bind="s.CompanyName" style="@InputStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Company Email</label>
+                    <input @bind="s.CompanyEmail" type="email" style="@InputStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Phone</label>
+                    <input @bind="s.CompanyPhone" style="@InputStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Address</label>
+                    <input @bind="s.CompanyAddress" style="@InputStyle" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Office Hours -->
+    <div class="col-md-6">
+        <div style="background:#1a1a2e; border-radius:12px; padding:28px; border:1px solid #2a2a4a; height:100%;">
+            <h6 style="color:#4361ee; font-weight:700; margin-bottom:20px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px;">
+                <i class="bi bi-clock me-2"></i>Office Hours
+            </h6>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Start Time</label>
+                    <input type="time" value="@OfficeStartStr" @onchange="e => SetStart(e.Value?.ToString())"
+                           style="@InputStyle" />
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:4px;">Current: @s.OfficeStartTime.ToString(@"hh\:mm") @(s.OfficeStartTime.Hours < 12 ? "AM" : "PM")</div>
+                </div>
+                <div class="col-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">End Time</label>
+                    <input type="time" value="@OfficeEndStr" @onchange="e => SetEnd(e.Value?.ToString())"
+                           style="@InputStyle" />
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:4px;">Current: @s.OfficeEndTime.ToString(@"hh\:mm") @(s.OfficeEndTime.Hours < 12 ? "AM" : "PM")</div>
+                </div>
+                <div class="col-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Required Hours / Day</label>
+                    <input @bind="s.RequiredWorkingHours" type="number" min="1" max="24" step="0.5" style="@InputStyle" />
+                </div>
+                <div class="col-6">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Grace Time (minutes)</label>
+                    <input @bind="s.GraceTimeMinutes" type="number" min="0" max="60" style="@InputStyle" />
+                </div>
+            </div>
+
+            <!-- Office Hours Visual -->
+            <div style="margin-top:20px; background:#0f0f1a; border-radius:8px; padding:14px;">
+                <div style="color:#8888aa; font-size:0.75rem; margin-bottom:8px;">SHIFT TIMELINE</div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="color:#22c55e; font-size:0.85rem; font-weight:600;">@FormatTime(s.OfficeStartTime)</span>
+                    <div style="flex:1; height:6px; background:linear-gradient(90deg,#4361ee,#7209b7); border-radius:3px;"></div>
+                    <span style="color:#ef4444; font-size:0.85rem; font-weight:600;">@FormatTime(s.OfficeEndTime)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:6px;">
+                    <span style="color:#6666aa; font-size:0.72rem;">Office Opens</span>
+                    <span style="color:#4361ee; font-size:0.72rem; font-weight:600;">@s.RequiredWorkingHours hrs shift</span>
+                    <span style="color:#6666aa; font-size:0.72rem;">Office Closes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Rules -->
+    <div class="col-md-6">
+        <div style="background:#1a1a2e; border-radius:12px; padding:28px; border:1px solid #2a2a4a; height:100%;">
+            <h6 style="color:#4361ee; font-weight:700; margin-bottom:20px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px;">
+                <i class="bi bi-shield-check me-2"></i>Attendance Rules
+            </h6>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Late Entry After (minutes from start)</label>
+                    <input @bind="s.LateEntryMinutes" type="number" min="0" max="120" style="@InputStyle" />
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:4px;">
+                        Late mark if check-in after @FormatTime(s.OfficeStartTime.Add(TimeSpan.FromMinutes(s.LateEntryMinutes)))
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:20px;">Weekly Holidays</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        @foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
+                        {
+                            bool isHoliday = holidayDays.Contains((int)day);
+                            <button type="button" @onclick="() => ToggleDay((int)day)"
+                                    style="padding:8px 14px; border-radius:8px; font-size:0.82rem; font-weight:600; cursor:pointer; border:1px solid @(isHoliday ? "#4361ee" : "#2a2a4a");
+                                           background:@(isHoliday ? "rgba(67,97,238,0.2)" : "#0f0f1a"); color:@(isHoliday ? "#818cf8" : "#6666aa");">
+                                @day.ToString()[..3]
+                            </button>
+                        }
+                    </div>
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:8px;">Selected: @HolidayNames()</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="col-12">
+        <button @onclick="Save"
+                style="padding:13px 40px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:10px; color:white; font-weight:700; font-size:1rem; cursor:pointer;">
+            <i class="bi bi-check-lg me-2"></i>Save All Settings
+        </button>
+    </div>
+
+</div>
+
+@code {
+    private CompanySettings s = new();
+    private bool saved;
+    private List<int> holidayDays = new();
+
+    private string InputStyle => "width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;";
+
+    private string OfficeStartStr => s.OfficeStartTime.ToString(@"hh\:mm");
+    private string OfficeEndStr   => s.OfficeEndTime.ToString(@"hh\:mm");
+
+    protected override void OnInitialized()
+    {
+        s = Svc.GetSettings();
+        holidayDays = s.WeeklyHolidayDays
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => int.TryParse(x.Trim(), out int d) ? d : -1)
+            .Where(d => d >= 0).ToList();
+    }
+
+    private void SetStart(string? val)
+    {
+        if (TimeSpan.TryParse(val, out var ts)) s.OfficeStartTime = ts;
+    }
+    private void SetEnd(string? val)
+    {
+        if (TimeSpan.TryParse(val, out var ts)) s.OfficeEndTime = ts;
+    }
+
+    private void ToggleDay(int day)
+    {
+        if (holidayDays.Contains(day)) holidayDays.Remove(day);
+        else holidayDays.Add(day);
+    }
+
+    private string HolidayNames() =>
+        holidayDays.Count == 0 ? "None" :
+        string.Join(", ", holidayDays.OrderBy(d => d).Select(d => ((DayOfWeek)d).ToString()));
+
+    private string FormatTime(TimeSpan t)
+    {
+        var dt = DateTime.Today.Add(t);
+        return dt.ToString("h:mm tt");
+    }
+
+    private void Save()
+    {
+        s.WeeklyHolidayDays = string.Join(",", holidayDays.OrderBy(d => d));
+        s.UpdatedAt = DateTime.Now;
+        Svc.SaveSettings(s);
+        saved = true;
+        _ = Task.Delay(3000).ContinueWith(_ => { saved = false; InvokeAsync(StateHasChanged); });
+    }
+}
