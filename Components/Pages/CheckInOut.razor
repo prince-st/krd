@@ -111,17 +111,13 @@
                 </div>
 
                 <!-- Progress bar toward required hours -->
-                @{
-                    double pct = att.RequiredHours > 0
-                        ? Math.Min(100, att.WorkingHours / att.RequiredHours * 100) : 0;
-                }
                 <div style="margin-bottom:18px;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                         <span style="color:#6666aa; font-size:0.75rem;">Daily Progress</span>
-                        <span style="color:@(pct >= 100 ? "#22c55e" : "#818cf8"); font-size:0.75rem; font-weight:600;">@($"{pct:F0}%")</span>
+                        <span style="color:@(Pct(att) >= 100 ? "#22c55e" : "#818cf8"); font-size:0.75rem; font-weight:600;">@($"{Pct(att):F0}%")</span>
                     </div>
                     <div style="height:8px; background:#2a2a4a; border-radius:4px; overflow:hidden;">
-                        <div style="height:8px; border-radius:4px; transition:width 0.5s; width:@($"{pct:F1}%"); background:@(pct >= 100 ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#4361ee,#7209b7)");"></div>
+                        <div style="height:8px; border-radius:4px; transition:width 0.5s; width:@($"{Pct(att):F1}%"); background:@(Pct(att) >= 100 ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#4361ee,#7209b7)");"></div>
                     </div>
                 </div>
             }
@@ -297,7 +293,7 @@
                         <div style="color:@(isToday ? "#818cf8" : "#8888aa"); font-size:0.78rem; font-weight:@(isToday ? "800" : "400");">@day.Day</div>
                         <div style="margin-top:5px; font-size:0.6rem; color:@col; font-weight:600;">
                             @if (isWeekend)              { <text>Off</text> }
-                            else if (isFuture)           { <text style="color:#3a3a6a;">—</text> }
+                            else if (isFuture)           { <span style="color:#3a3a6a;">—</span> }
                             else if (dayAtt == null)     { <text>Abs</text> }
                             else if (dayAtt.WorkingHours > 0) { <text>@($"{dayAtt.WorkingHours:F1}h")</text> }
                             else                         { @dayAtt.Status.ToString()[..3] }
@@ -386,5 +382,7 @@
     }
 
     private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+    private double Pct(AttRec? a) => a == null || a.RequiredHours <= 0 ? 0
+        : Math.Min(100, a.WorkingHours / a.RequiredHours * 100);
     public void Dispose() => _timer?.Dispose();
 }

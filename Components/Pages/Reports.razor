@@ -131,7 +131,12 @@
                         <td style="color:#4361ee;">@(a.CheckOutTime?.ToString("hh:mm tt") ?? "-")</td>
                         <td style="color:#818cf8; font-weight:600;">@(a.WorkingHours > 0 ? $"{a.WorkingHours:F1}h" : "-")</td>
                         <td style="color:#f59e0b;">@(a.OvertimeHours > 0 ? $"+{a.OvertimeHours:F1}h" : "-")</td>
-                        <td>@(a.IsLate ? $"<span style='color:#f59e0b;'>Yes (+{a.LateMinutes}m)</span>" : "<span style='color:#6666aa;'>No</span>")</td>
+                        <td>
+                            @if (a.IsLate)
+                            { <span style="color:#f59e0b; font-weight:600;"><i class="bi bi-clock me-1"></i>+@(a.LateMinutes)m</span> }
+                            else
+                            { <span style="color:#4a4a6a;">—</span> }
+                        </td>
                         <td><StatusBadge Status="@a.Status.ToString()"/></td>
                     </tr>
                 }
