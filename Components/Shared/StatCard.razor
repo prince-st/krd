@@ -1,0 +1,15 @@
+@* Shared stat card component *@
+<div style="background:#1a1a2e; border-radius:10px; padding:20px; border:1px solid #2a2a4a; border-left:4px solid @Color;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <span style="color:#6666aa; font-size:0.8rem; font-weight:600; text-transform:uppercase;">@Title</span>
+        <i class="bi @Icon" style="color:@Color; font-size:1.3rem;"></i>
+    </div>
+    <div style="color:@Color; font-size:2rem; font-weight:800;">@Value</div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Icon  { get; set; } = "";
+    [Parameter] public string Color { get; set; } = "#4361ee";
+}

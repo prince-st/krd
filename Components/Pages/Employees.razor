@@ -1,0 +1,162 @@
+@page "/employees"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using KRD.AttendanceWeb.Models
+
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Employee Management</h4>
+    <button @onclick="() => OpenDialog(null)" style="padding:9px 18px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+        <i class="bi bi-plus-lg me-2"></i>Add Employee
+    </button>
+</div>
+
+<!-- Search -->
+<div style="margin-bottom:16px;">
+    <input @bind="search" @bind:event="oninput" placeholder="Search employees..."
+           style="padding:10px 14px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; width:280px; font-size:0.9rem;" />
+</div>
+
+<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
+    <table class="table table-dark table-hover mb-0">
+        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
+            <th>Employee ID</th><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+            @foreach (var emp in Filtered())
+            {
+                <tr style="color:#c0c0e0; vertical-align:middle;">
+                    <td style="color:#4361ee; font-weight:600;">@emp.EmployeeId</td>
+                    <td>@emp.FullName</td>
+                    <td style="color:#8888aa;">@emp.Email</td>
+                    <td>@(emp.Department?.Name ?? "-")</td>
+                    <td>@emp.Position</td>
+                    <td><StatusBadge Status="@(emp.IsActive ? "Active" : "Inactive")"/></td>
+                    <td>
+                        <button @onclick="() => OpenDialog(emp)" style="padding:4px 10px; background:#f59e0b22; color:#f59e0b; border:1px solid #f59e0b44; border-radius:6px; font-size:0.8rem; cursor:pointer; margin-right:6px;">Edit</button>
+                        <button @onclick="() => Deactivate(emp.Id)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Deactivate</button>
+                    </td>
+                </tr>
+            }
+            @if (!Filtered().Any())
+            {
+                <tr><td colspan="7" style="text-align:center; color:#4a4a6a; padding:24px;">No employees found</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Dialog -->
+@if (showDialog)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div style="background:#1a1a2e; border-radius:12px; padding:32px; width:500px; max-height:90vh; overflow-y:auto; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <h5 style="color:#e0e0ff; margin-bottom:24px;">@(editEmp.Id == 0 ? "Add Employee" : "Edit Employee")</h5>
+
+            @foreach (var (lbl, val, setter) in Fields())
+            {
+                <div style="margin-bottom:14px;">
+                    <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">@lbl</label>
+                    <input value="@val" @oninput="e => setter(e.Value?.ToString() ?? string.Empty)"
+                           style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;" />
+                </div>
+            }
+
+            <div style="margin-bottom:14px;">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Department</label>
+                <select @bind="editEmp.DepartmentId"
+                        style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem;">
+                    @foreach (var d in depts)
+                    {
+                        <option value="@d.Id">@d.Name</option>
+                    }
+                </select>
+            </div>
+
+            @if (editEmp.Id == 0)
+            {
+                <div style="margin-bottom:14px;">
+                    <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Password</label>
+                    <input @bind="newPassword" type="password"
+                           style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;" />
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(dlgError))
+            {
+                <div style="color:#ef4444; font-size:0.82rem; margin-bottom:12px;">⚠ @dlgError</div>
+            }
+
+            <div class="d-flex gap-3 mt-4">
+                <button @onclick="SaveEmployee" style="flex:1; padding:11px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+                    @(editEmp.Id == 0 ? "Add Employee" : "Save Changes")
+                </button>
+                <button @onclick="() => showDialog=false" style="flex:1; padding:11px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Employee> employees = new();
+    private List<Department> depts = new();
+    private string search = "";
+    private bool showDialog;
+    private Employee editEmp = new();
+    private string newPassword = "";
+    private string dlgError = "";
+
+    protected override void OnInitialized() { Reload(); depts = Svc.GetDepartments(); }
+    private void Reload() => employees = Svc.GetAllEmployees(false);
+    private IEnumerable<Employee> Filtered() => employees.Where(e =>
+        string.IsNullOrEmpty(search) ||
+        e.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        e.EmployeeId.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        e.Email.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    private void OpenDialog(Employee? emp)
+    {
+        editEmp = emp == null ? new Employee() : new Employee
+        {
+            Id=emp.Id, EmployeeId=emp.EmployeeId, FullName=emp.FullName,
+            Email=emp.Email, Phone=emp.Phone, Position=emp.Position,
+            DepartmentId=emp.DepartmentId, JoinDate=emp.JoinDate, IsActive=emp.IsActive
+        };
+        if (depts.Any() && editEmp.DepartmentId == 0) editEmp.DepartmentId = depts[0].Id;
+        newPassword = ""; dlgError = ""; showDialog = true;
+    }
+
+    private void SaveEmployee()
+    {
+        dlgError = "";
+        if (string.IsNullOrWhiteSpace(editEmp.FullName) || string.IsNullOrWhiteSpace(editEmp.Email) || string.IsNullOrWhiteSpace(editEmp.EmployeeId))
+        { dlgError = "Employee ID, Name, and Email are required."; return; }
+
+        if (editEmp.Id == 0)
+        {
+            if (string.IsNullOrWhiteSpace(newPassword)) { dlgError = "Password is required."; return; }
+            editEmp.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            editEmp.IsActive = true;
+            if (!Svc.AddEmployee(editEmp)) { dlgError = "Employee ID or Email already exists."; return; }
+        }
+        else
+        {
+            if (!Svc.UpdateEmployee(editEmp)) { dlgError = "Failed to update."; return; }
+        }
+        showDialog = false; Reload();
+    }
+
+    private void Deactivate(int id) { Svc.DeactivateEmployee(id); Reload(); }
+
+    private IEnumerable<(string, string, Action<string>)> Fields() => new (string, string, Action<string>)[]
+    {
+        ("Employee ID", editEmp.EmployeeId, v => editEmp.EmployeeId = v),
+        ("Full Name",   editEmp.FullName,   v => editEmp.FullName   = v),
+        ("Email",       editEmp.Email,      v => editEmp.Email      = v),
+        ("Phone",       editEmp.Phone,      v => editEmp.Phone      = v),
+        ("Position",    editEmp.Position,   v => editEmp.Position   = v),
+    };
+}

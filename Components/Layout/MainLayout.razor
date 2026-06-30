@@ -1,0 +1,82 @@
+﻿@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+@if (!Auth.IsLoggedIn)
+{
+    @Body
+}
+else
+{
+    <div class="d-flex" style="min-height:100vh; background:#0f0f1a;">
+        <!-- Sidebar -->
+        <div style="width:230px; background:#1a1a2e; flex-shrink:0; display:flex; flex-direction:column;">
+            <!-- Logo -->
+            <div style="background: linear-gradient(135deg,#4361ee,#7209b7); padding:20px; text-align:center;">
+                <div style="font-size:2rem; font-weight:900; color:white;">KRD</div>
+                <div style="font-size:0.7rem; color:rgba(255,255,255,0.7);">ATTENDANCE SYSTEM</div>
+            </div>
+
+            <!-- User info -->
+            <div style="padding:16px; background:#16213e; border-bottom:1px solid #2a2a4a;">
+                <div style="width:44px;height:44px;border-radius:50%;background:#4361ee;display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:1.1rem;margin-bottom:8px;">
+                    @GetInitials(Auth.IsAdminLoggedIn ? Auth.CurrentAdmin!.FullName : Auth.CurrentEmployee!.FullName)
+                </div>
+                <div style="color:#e0e0ff;font-weight:600;font-size:0.85rem;">
+                    @(Auth.IsAdminLoggedIn ? Auth.CurrentAdmin!.FullName : Auth.CurrentEmployee!.FullName)
+                </div>
+                <div style="color:#4361ee;font-size:0.75rem;">@Auth.Role</div>
+            </div>
+
+            <!-- Nav -->
+            <nav style="flex:1; padding:10px 0; overflow-y:auto;">
+                @if (Auth.IsAdminLoggedIn)
+                {
+                    <NavItem Icon="bi-speedometer2" Text="Dashboard"    Href="/"            />
+                    <NavItem Icon="bi-people"       Text="Employees"    Href="/employees"   />
+                    <NavItem Icon="bi-calendar-check" Text="Attendance" Href="/attendance"  />
+                    <NavItem Icon="bi-calendar-x"  Text="Leave Requests" Href="/leaves"    />
+                    <NavItem Icon="bi-balloon"     Text="Holidays"     Href="/holidays"     />
+                    <NavItem Icon="bi-bar-chart"   Text="Reports"      Href="/reports"      />
+                    <NavItem Icon="bi-gear"        Text="Settings"     Href="/settings"     />
+                }
+                else
+                {
+                    <NavItem Icon="bi-speedometer2" Text="Dashboard"   Href="/"             />
+                    <NavItem Icon="bi-clock"        Text="Check In/Out" Href="/checkinout"  />
+                    <NavItem Icon="bi-calendar3"    Text="My Attendance" Href="/myattendance"/>
+                    <NavItem Icon="bi-send"         Text="Apply Leave"  Href="/applyleave"  />
+                    <NavItem Icon="bi-person"       Text="My Profile"   Href="/profile"     />
+                }
+            </nav>
+
+            <!-- Logout -->
+            <div style="padding:12px; border-top:1px solid #2a2a4a;">
+                <button class="btn btn-outline-danger w-100 btn-sm" @onclick="Logout">
+                    <i class="bi bi-box-arrow-left me-2"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div style="flex:1; overflow-y:auto; padding:28px; background:#0f0f1a;">
+            @Body
+        </div>
+    </div>
+}
+
+@code {
+    private void Logout()
+    {
+        Auth.Logout();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return "?";
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+}

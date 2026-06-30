@@ -1,0 +1,29 @@
+@inject NavigationManager Nav
+
+<a href="@Href" style="display:flex; align-items:center; padding:11px 20px; color:@(IsActive ? "#4361ee" : "#8888aa");
+   background:@(IsActive ? "rgba(67,97,238,0.12)" : "transparent");
+   border-left:3px solid @(IsActive ? "#4361ee" : "transparent");
+   text-decoration:none; font-size:0.9rem; font-weight:@(IsActive ? "600" : "400");
+   transition:all 0.2s; margin-bottom:2px;"
+   @onmouseover="() => hovered=true" @onmouseout="() => hovered=false">
+    <i class="bi @Icon me-3" style="font-size:1rem;"></i>
+    @Text
+</a>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "";
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public string Href { get; set; } = "";
+    private bool hovered = false;
+
+    private bool IsActive
+    {
+        get
+        {
+            var cur = Nav.ToBaseRelativePath(Nav.Uri);
+            var target = Href.TrimStart('/');
+            if (Href == "/") return cur == "" || cur == "/";
+            return cur.StartsWith(target, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}

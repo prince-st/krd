@@ -1,0 +1,85 @@
+@page "/holidays"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using KRD.AttendanceWeb.Models
+
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Holiday Management</h4>
+    <button @onclick="() => showAdd=true" style="padding:9px 18px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+        <i class="bi bi-plus-lg me-2"></i>Add Holiday
+    </button>
+</div>
+
+@if (showAdd)
+{
+    <div style="background:#1a1a2e; border-radius:10px; padding:24px; border:1px solid #2a2a4a; max-width:480px; margin-bottom:24px;">
+        <h6 style="color:#e0e0ff; margin-bottom:16px;">New Holiday</h6>
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Name</label>
+                <input @bind="newName" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; box-sizing:border-box;" />
+            </div>
+            <div class="col-md-4">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Date</label>
+                <input type="date" @bind="newDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            </div>
+            <div class="col-12">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Description</label>
+                <input @bind="newDesc" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; box-sizing:border-box;" />
+            </div>
+        </div>
+        <div class="d-flex gap-3 mt-3">
+            <button @onclick="AddHoliday" style="padding:9px 20px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">Save</button>
+            <button @onclick="() => showAdd=false" style="padding:9px 20px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+}
+
+<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
+    <table class="table table-dark table-hover mb-0">
+        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
+            <th>Name</th><th>Date</th><th>Day</th><th>Description</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+            @foreach (var h in holidays)
+            {
+                <tr style="color:#c0c0e0;">
+                    <td style="font-weight:600; color:#e0e0ff;">@h.Name</td>
+                    <td>@h.Date.ToString("MMM dd, yyyy")</td>
+                    <td>@h.Date.DayOfWeek</td>
+                    <td style="color:#8888aa;">@h.Description</td>
+                    <td>
+                        <button @onclick="() => Delete(h.Id)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Delete</button>
+                    </td>
+                </tr>
+            }
+            @if (!holidays.Any())
+            {
+                <tr><td colspan="5" style="text-align:center; color:#4a4a6a; padding:24px;">No holidays added</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Holiday> holidays = new();
+    private bool showAdd;
+    private string newName = "", newDesc = "";
+    private DateTime newDate = DateTime.Today;
+
+    protected override void OnInitialized() => Reload();
+    private void Reload() => holidays = Svc.GetHolidays();
+
+    private void AddHoliday()
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        Svc.AddHoliday(new Holiday { Name=newName, Date=newDate, Description=newDesc });
+        newName=""; newDesc=""; showAdd=false; Reload();
+    }
+
+    private void Delete(int id) { Svc.DeleteHoliday(id); Reload(); }
+}

@@ -1,0 +1,122 @@
+@page "/dashboard"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad: true); return; }
+
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">
+    Good @TimeOfDay(), @FirstName()!
+</h4>
+<p style="color:#6666aa; margin-bottom:28px;">@DateTime.Now.ToString("dddd, MMMM dd, yyyy")</p>
+
+@if (Auth.IsAdminLoggedIn)
+{
+    <!-- Admin stat cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><StatCard Title="Total Employees" Value="@total.ToString()" Icon="bi-people" Color="#4361ee"/></div>
+        <div class="col-md-3"><StatCard Title="Present Today"   Value="@present.ToString()" Icon="bi-person-check" Color="#22c55e"/></div>
+        <div class="col-md-3"><StatCard Title="Absent Today"    Value="@absentToday.ToString()" Icon="bi-person-x" Color="#ef4444"/></div>
+        <div class="col-md-3"><StatCard Title="Pending Leaves"  Value="@pendingLeaves.ToString()" Icon="bi-calendar-x" Color="#f59e0b"/></div>
+    </div>
+
+    <div style="background:#1a1a2e; border-radius:10px; padding:20px; border:1px solid #2a2a4a;">
+        <h6 style="color:#e0e0ff; margin-bottom:16px; font-weight:600;">Today's Attendance</h6>
+        <table class="table table-dark table-hover table-sm">
+            <thead><tr style="color:#6666aa;">
+                <th>Employee</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th>
+            </tr></thead>
+            <tbody>
+                @foreach (var a in todayAtt)
+                {
+                    <tr style="color:#c0c0e0;">
+                        <td>@a.Employee?.FullName</td>
+                        <td>@(a.CheckInTime?.ToString("hh:mm tt") ?? "-")</td>
+                        <td>@(a.CheckOutTime?.ToString("hh:mm tt") ?? "-")</td>
+                        <td>@(a.WorkingHours > 0 ? $"{a.WorkingHours:F1}h" : "-")</td>
+                        <td><StatusBadge Status="@a.Status.ToString()"/></td>
+                    </tr>
+                }
+                @if (!todayAtt.Any())
+                {
+                    <tr><td colspan="5" style="text-align:center;color:#4a4a6a;padding:20px;">No attendance records today</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <!-- Employee dashboard -->
+    var att = todayEmpAtt;
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div style="background:#1a1a2e; border-radius:10px; padding:24px; border:1px solid #2a2a4a;">
+                <h6 style="color:#8888aa; font-size:0.8rem; font-weight:600; margin-bottom:8px;">TODAY'S STATUS</h6>
+                @if (att == null)
+                {
+                    <div style="color:#ef4444; font-size:1.4rem; font-weight:700;">Not Checked In</div>
+                    <p style="color:#6666aa; font-size:0.85rem; margin-top:4px;">Go to Check In/Out to mark your attendance</p>
+                }
+                else
+                {
+                    <div style="color:@StatusColor(att.Status.ToString()); font-size:1.4rem; font-weight:700;">@att.Status.ToString()</div>
+                    <div class="row mt-3">
+                        <div class="col-md-4" style="color:#8888aa; font-size:0.85rem;">Check In: <span style="color:#e0e0ff;">@(att.CheckInTime?.ToString("hh:mm tt") ?? "-")</span></div>
+                        <div class="col-md-4" style="color:#8888aa; font-size:0.85rem;">Check Out: <span style="color:#e0e0ff;">@(att.CheckOutTime?.ToString("hh:mm tt") ?? "Not yet")</span></div>
+                        <div class="col-md-4" style="color:#8888aa; font-size:0.85rem;">Hours: <span style="color:#e0e0ff;">@(att.WorkingHours > 0 ? $"{att.WorkingHours:F1}h" : "Ongoing")</span></div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-md-3"><StatCard Title="Present This Month" Value="@empPresent.ToString()" Icon="bi-calendar-check" Color="#22c55e"/></div>
+        <div class="col-md-3"><StatCard Title="Late Days"          Value="@empLate.ToString()"    Icon="bi-clock-history"  Color="#f59e0b"/></div>
+        <div class="col-md-3"><StatCard Title="Absent Days"        Value="@empAbsent.ToString()"  Icon="bi-calendar-x"     Color="#ef4444"/></div>
+        <div class="col-md-3"><StatCard Title="Total Hours"        Value="@($"{empHours:F0}h")"   Icon="bi-hourglass-split" Color="#4361ee"/></div>
+    </div>
+}
+
+@code {
+    private int total, present, absentToday, pendingLeaves, empPresent, empLate, empAbsent;
+    private double empHours;
+    private List<KRD.AttendanceWeb.Models.Attendance> todayAtt = new();
+    private KRD.AttendanceWeb.Models.Attendance? todayEmpAtt;
+
+    protected override void OnInitialized()
+    {
+        if (!Auth.IsLoggedIn) return;
+        if (Auth.IsAdminLoggedIn)
+        {
+            total        = Svc.TotalActive();
+            present      = Svc.PresentToday();
+            absentToday  = total - present;
+            pendingLeaves= Svc.PendingLeaves();
+            todayAtt     = Svc.GetAttendanceByDate(DateTime.Today);
+        }
+        else
+        {
+            var empId = Auth.CurrentEmployee!.Id;
+            todayEmpAtt = Svc.GetTodayAttendance(empId);
+            var month   = DateTime.Today.Month;
+            var year    = DateTime.Today.Year;
+            var recs    = Svc.GetAttendanceByEmployee(empId,
+                new DateTime(year, month, 1), DateTime.Today);
+            empPresent  = recs.Count(r => r.Status == KRD.AttendanceWeb.Models.AttendanceStatus.Present
+                                       || r.Status == KRD.AttendanceWeb.Models.AttendanceStatus.Late);
+            empLate     = recs.Count(r => r.IsLate);
+            empHours    = recs.Sum(r => r.WorkingHours);
+            empAbsent   = Math.Max(0, DateTime.Today.Day - empPresent);
+        }
+    }
+
+    private string TimeOfDay() => DateTime.Now.Hour < 12 ? "Morning" : DateTime.Now.Hour < 17 ? "Afternoon" : "Evening";
+    private string FirstName() => Auth.IsAdminLoggedIn
+        ? Auth.CurrentAdmin!.FullName.Split(' ')[0]
+        : Auth.CurrentEmployee!.FullName.Split(' ')[0];
+    private string StatusColor(string s) => s switch
+    {
+        "Present" => "#22c55e", "Late" => "#f59e0b",
+        "Absent"  => "#ef4444", _ => "#6182f0"
+    };
+}

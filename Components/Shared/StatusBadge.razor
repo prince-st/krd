@@ -1,0 +1,21 @@
+@* Status badge *@
+<span style="padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;
+    background:@BgColor(); color:@TextColor();">@Status</span>
+
+@code {
+    [Parameter] public string Status { get; set; } = "";
+    private string BgColor() => Status switch
+    {
+        "Present"  => "rgba(34,197,94,0.15)",  "Late"      => "rgba(245,158,11,0.15)",
+        "Absent"   => "rgba(239,68,68,0.15)",  "Approved"  => "rgba(34,197,94,0.15)",
+        "Rejected" => "rgba(239,68,68,0.15)",  "Pending"   => "rgba(245,158,11,0.15)",
+        "EarlyExit"=> "rgba(6,182,212,0.15)",  _ => "rgba(99,102,241,0.15)"
+    };
+    private string TextColor() => Status switch
+    {
+        "Present"  => "#22c55e", "Late"      => "#f59e0b",
+        "Absent"   => "#ef4444", "Approved"  => "#22c55e",
+        "Rejected" => "#ef4444", "Pending"   => "#f59e0b",
+        "EarlyExit"=> "#06b6d4", _ => "#818cf8"
+    };
+}

@@ -1,0 +1,130 @@
+@page "/leaves"
+@page "/applyleave"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using KRD.AttendanceWeb.Models
+
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">
+    @(Auth.IsAdminLoggedIn ? "Leave Requests" : "Apply for Leave")
+</h4>
+
+@if (!Auth.IsAdminLoggedIn)
+{
+    <!-- Apply form -->
+    <div style="background:#1a1a2e; border-radius:10px; padding:24px; border:1px solid #2a2a4a; max-width:500px; margin-bottom:28px;">
+        <h6 style="color:#e0e0ff; margin-bottom:18px;">New Application</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Leave Type</label>
+                <select @bind="leaveType" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;">
+                    @foreach (var lt in Enum.GetValues<LeaveType>())
+                    { <option value="@lt">@lt</option> }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Start</label>
+                <input type="date" @bind="startDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            </div>
+            <div class="col-md-3">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">End</label>
+                <input type="date" @bind="endDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            </div>
+            <div class="col-12">
+                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Reason</label>
+                <textarea @bind="reason" rows="3" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; resize:vertical; box-sizing:border-box;"></textarea>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(applyMsg))
+        {
+            <div style="color:@(applyOk ? "#22c55e" : "#ef4444"); font-size:0.82rem; margin-top:10px;">@applyMsg</div>
+        }
+        <button @onclick="SubmitLeave" style="margin-top:14px; padding:10px 24px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+            Submit Application
+        </button>
+    </div>
+}
+
+<!-- Table -->
+<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
+    <table class="table table-dark table-hover mb-0">
+        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
+            @if (Auth.IsAdminLoggedIn) { <th>Employee</th> }
+            <th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Reason</th><th>Status</th>
+            @if (Auth.IsAdminLoggedIn) { <th>Actions</th> }
+        </tr></thead>
+        <tbody>
+            @foreach (var l in leaves)
+            {
+                <tr style="color:#c0c0e0; vertical-align:middle;">
+                    @if (Auth.IsAdminLoggedIn) { <td>@(l.Employee?.FullName ?? $"ID:{l.EmployeeId}")</td> }
+                    <td>@l.LeaveType</td>
+                    <td>@l.StartDate.ToString("MMM dd")</td>
+                    <td>@l.EndDate.ToString("MMM dd, yyyy")</td>
+                    <td>@l.TotalDays</td>
+                    <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@l.Reason</td>
+                    <td><StatusBadge Status="@l.Status.ToString()"/></td>
+                    @if (Auth.IsAdminLoggedIn && l.Status == LeaveStatus.Pending)
+                    {
+                        <td>
+                            <button @onclick="() => UpdateStatus(l.Id, LeaveStatus.Approved)" style="padding:4px 10px; background:#22c55e22; color:#22c55e; border:1px solid #22c55e44; border-radius:6px; font-size:0.8rem; cursor:pointer; margin-right:5px;">Approve</button>
+                            <button @onclick="() => UpdateStatus(l.Id, LeaveStatus.Rejected)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Reject</button>
+                        </td>
+                    }
+                    else if (Auth.IsAdminLoggedIn) { <td>—</td> }
+                </tr>
+            }
+            @if (!leaves.Any())
+            {
+                <tr><td colspan="8" style="text-align:center; color:#4a4a6a; padding:24px;">No leave requests</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Leave> leaves = new();
+    private LeaveType leaveType = LeaveType.Casual;
+    private DateTime startDate = DateTime.Today.AddDays(1);
+    private DateTime endDate   = DateTime.Today.AddDays(1);
+    private string reason = "";
+    private string applyMsg = "";
+    private bool applyOk;
+
+    protected override void OnInitialized() => Reload();
+
+    private void Reload()
+    {
+        leaves = Auth.IsAdminLoggedIn
+            ? Svc.GetAllLeaves()
+            : Svc.GetLeavesByEmployee(Auth.CurrentEmployee!.Id);
+    }
+
+    private void SubmitLeave()
+    {
+        if (string.IsNullOrWhiteSpace(reason)) { applyMsg = "Please enter a reason."; applyOk = false; return; }
+        if (endDate < startDate) { applyMsg = "End date must be after start date."; applyOk = false; return; }
+        Svc.ApplyLeave(new Leave
+        {
+            EmployeeId = Auth.CurrentEmployee!.Id,
+            LeaveType  = leaveType,
+            StartDate  = startDate,
+            EndDate    = endDate,
+            TotalDays  = (int)(endDate - startDate).TotalDays + 1,
+            Reason     = reason,
+            Status     = LeaveStatus.Pending,
+            AppliedDate= DateTime.Now
+        });
+        reason = ""; applyOk = true; applyMsg = "✔ Leave application submitted successfully!";
+        Reload();
+    }
+
+    private void UpdateStatus(int id, LeaveStatus status)
+    {
+        Svc.UpdateLeaveStatus(id, status, Auth.CurrentAdmin!.Id);
+        Reload();
+    }
+}

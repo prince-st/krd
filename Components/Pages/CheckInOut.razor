@@ -1,0 +1,92 @@
+@page "/checkinout"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using AttRec = KRD.AttendanceWeb.Models.Attendance
+
+@if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">Check In / Check Out</h4>
+
+<div style="max-width:520px;">
+    <div style="background:#1a1a2e; border-radius:12px; padding:32px; border:1px solid #2a2a4a;">
+        <div style="color:#6666aa; font-size:0.9rem; margin-bottom:6px;">@DateTime.Now.ToString("dddd, MMMM dd, yyyy")</div>
+        <div style="color:#4361ee; font-size:2.5rem; font-weight:800; margin-bottom:20px; font-family:monospace;">@currentTime</div>
+
+        @if (att != null)
+        {
+            <div style="margin-bottom:16px; color:#8888aa; font-size:0.9rem;">
+                Checked in at: <span style="color:#22c55e; font-weight:600;">@att.CheckInTime?.ToString("hh:mm tt")</span>
+            </div>
+            @if (att.CheckOutTime != null)
+            {
+                <div style="color:#8888aa; font-size:0.9rem; margin-bottom:16px;">
+                    Checked out at: <span style="color:#4361ee; font-weight:600;">@att.CheckOutTime?.ToString("hh:mm tt")</span>
+                    &nbsp;|&nbsp; Worked: <span style="color:#22c55e; font-weight:600;">@($"{att.WorkingHours:F1}h")</span>
+                </div>
+            }
+        }
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div style="padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:0.88rem;
+                background:@(isSuccess ? "rgba(34,197,94,0.1)" : "rgba(245,158,11,0.1)");
+                color:@(isSuccess ? "#22c55e" : "#f59e0b");">
+                <i class="bi @(isSuccess ? "bi-check-circle" : "bi-exclamation-circle") me-2"></i>@message
+            </div>
+        }
+
+        <div class="d-flex gap-3">
+            <button @onclick="DoCheckIn" disabled="@(att != null)"
+                    style="flex:1; padding:16px; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;
+                        background:@(att == null ? "#22c55e" : "#2a2a4a"); color:@(att == null ? "white" : "#4a4a6a");">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Check In
+            </button>
+            <button @onclick="DoCheckOut" disabled="@(att == null || att.CheckOutTime != null)"
+                    style="flex:1; padding:16px; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;
+                        background:@(att != null && att.CheckOutTime == null ? "#ef4444" : "#2a2a4a");
+                        color:@(att != null && att.CheckOutTime == null ? "white" : "#4a4a6a");">
+                <i class="bi bi-box-arrow-left me-2"></i>Check Out
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private AttRec? att;
+    private string currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+    private string message = "";
+    private bool isSuccess;
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        if (!Auth.IsEmployeeLoggedIn) return;
+        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        _timer = new System.Threading.Timer(_ =>
+        {
+            currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    private void DoCheckIn()
+    {
+        bool ok = Svc.CheckIn(Auth.CurrentEmployee!.Id);
+        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        isSuccess = ok;
+        message = ok ? $"✔ Checked in at {DateTime.Now:hh:mm tt}{(att?.IsLate == true ? $" (Late by {att.LateMinutes}min)" : "")}"
+                     : "Already checked in today.";
+    }
+
+    private void DoCheckOut()
+    {
+        bool ok = Svc.CheckOut(Auth.CurrentEmployee!.Id);
+        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        isSuccess = ok;
+        message = ok ? $"✔ Checked out at {DateTime.Now:hh:mm tt} — {att?.WorkingHours:F1}h worked" : "Failed to check out.";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

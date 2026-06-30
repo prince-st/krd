@@ -1,0 +1,67 @@
+@page "/attendance"
+@page "/myattendance"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using AttRec = KRD.AttendanceWeb.Models.Attendance
+
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">
+    @(Auth.IsAdminLoggedIn ? "Attendance Records" : "My Attendance")
+</h4>
+
+<div style="display:flex; gap:12px; align-items:center; margin-bottom:18px; flex-wrap:wrap;">
+    <div>
+        <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:4px;">From</label>
+        <input type="date" @bind="from" style="padding:8px 12px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+    </div>
+    <div>
+        <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:4px;">To</label>
+        <input type="date" @bind="to" style="padding:8px 12px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+    </div>
+    <button @onclick="Load" style="margin-top:18px; padding:9px 20px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">Filter</button>
+</div>
+
+<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
+    <table class="table table-dark table-hover mb-0">
+        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
+            @if (Auth.IsAdminLoggedIn) { <th>Employee</th> }
+            <th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Late?</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+            @foreach (var a in records)
+            {
+                <tr style="color:#c0c0e0; vertical-align:middle;">
+                    @if (Auth.IsAdminLoggedIn) { <td>@a.Employee?.FullName</td> }
+                    <td>@a.Date.ToString("MMM dd, yyyy")</td>
+                    <td>@(a.CheckInTime?.ToString("hh:mm tt") ?? "-")</td>
+                    <td>@(a.CheckOutTime?.ToString("hh:mm tt") ?? "-")</td>
+                    <td>@(a.WorkingHours > 0 ? $"{a.WorkingHours:F1}h" : "-")</td>
+                    <td>@(a.IsLate ? $"Yes (+{a.LateMinutes}m)" : "No")</td>
+                    <td><StatusBadge Status="@a.Status.ToString()"/></td>
+                </tr>
+            }
+            @if (!records.Any())
+            {
+                <tr><td colspan="7" style="text-align:center; color:#4a4a6a; padding:24px;">No records found for selected range</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private DateTime from = DateTime.Today.AddDays(-30);
+    private DateTime to   = DateTime.Today;
+    private List<AttRec> records = new();
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        records = Auth.IsAdminLoggedIn
+            ? Svc.GetAttendanceRange(from, to)
+            : Svc.GetAttendanceByEmployee(Auth.CurrentEmployee!.Id, from, to);
+    }
+}
