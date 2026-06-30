@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Employee> Employees { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<Attendance> Attendances { get; set; }
+    public DbSet<PunchLog> PunchLogs { get; set; }
     public DbSet<Holiday> Holidays { get; set; }
     public DbSet<Leave> Leaves { get; set; }
     public DbSet<CompanySettings> CompanySettings { get; set; }
@@ -47,6 +48,19 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Attendance>()
             .HasIndex(a => new { a.EmployeeId, a.Date })
             .IsUnique();
+
+        // PunchLog relationships
+        modelBuilder.Entity<PunchLog>()
+            .HasOne(p => p.Employee)
+            .WithMany()
+            .HasForeignKey(p => p.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PunchLog>()
+            .HasOne(p => p.Attendance)
+            .WithMany()
+            .HasForeignKey(p => p.AttendanceId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Relationships
         modelBuilder.Entity<Employee>()

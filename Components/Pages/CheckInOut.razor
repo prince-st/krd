@@ -2,97 +2,134 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-@using AttRec = KRD.AttendanceWeb.Models.Attendance
+@using AttRec  = KRD.AttendanceWeb.Models.Attendance
+@using PunchRec = KRD.AttendanceWeb.Models.PunchLog
 @implements IDisposable
 
 @if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
-<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:8px;">Check In / Check Out</h4>
-<p style="color:#6666aa; margin-bottom:28px;">Mark your daily attendance</p>
+<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">Check In / Check Out</h4>
+<p style="color:#6666aa; margin-bottom:24px;">You can punch in and out multiple times throughout the day</p>
 
 <div class="row g-4">
-    <!-- Main Card -->
-    <div class="col-md-6">
-        <div style="background:#1a1a2e; border-radius:14px; padding:36px; border:1px solid #2a2a4a; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
 
-            <!-- Date & Live Clock -->
-            <div style="color:#6666aa; font-size:0.88rem; margin-bottom:6px;">
+    <!-- ── LEFT: Punch card ── -->
+    <div class="col-lg-7">
+        <div style="background:#1a1a2e; border-radius:14px; padding:32px; border:1px solid #2a2a4a; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+
+            <!-- Date + Clock -->
+            <div style="color:#6666aa; font-size:0.88rem; margin-bottom:4px;">
                 <i class="bi bi-calendar3 me-2"></i>@DateTime.Now.ToString("dddd, MMMM dd, yyyy")
             </div>
-            <div style="color:#4361ee; font-size:3rem; font-weight:900; margin-bottom:24px; font-family:monospace; letter-spacing:2px;">
+            <div style="color:#4361ee; font-size:3.2rem; font-weight:900; font-family:monospace; letter-spacing:3px; margin-bottom:24px;">
                 @currentTime
             </div>
 
-            <!-- Status indicator -->
-            <div style="background:#0f0f1a; border-radius:10px; padding:16px; margin-bottom:24px;">
-                @if (att == null)
+            <!-- Status Banner -->
+            <div style="background:#0f0f1a; border-radius:10px; padding:18px; margin-bottom:20px;">
+                @if (openPunch != null)
                 {
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:10px; height:10px; border-radius:50%; background:#6666aa;"></div>
-                        <span style="color:#8888aa; font-size:0.95rem;">Not checked in today</span>
-                    </div>
-                }
-                else if (att.CheckOutTime == null)
-                {
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <!-- Currently IN -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <div style="width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></div>
+                            <div style="width:12px; height:12px; border-radius:50%; background:#22c55e; box-shadow:0 0 10px #22c55e; animation:pulse 2s infinite;"></div>
                             <div>
-                                <div style="color:#22c55e; font-weight:700; font-size:0.95rem;">Currently Working</div>
+                                <div style="color:#22c55e; font-weight:700; font-size:1rem;">Currently Working</div>
                                 <div style="color:#6666aa; font-size:0.78rem; margin-top:2px;">
-                                    Checked in at <strong style="color:#e0e0ff;">@att.CheckInTime?.ToString("hh:mm tt")</strong>
-                                    @if (att.IsLate) { <span style="color:#f59e0b;"> — Late by @att.LateMinutes min</span> }
+                                    Punched in at <strong style="color:#e0e0ff;">@openPunch.PunchIn.ToString("hh:mm tt")</strong>
+                                    @if (att?.IsLate == true && punches.Count == 1)
+                                    { <span style="color:#f59e0b;"> — Late by @att.LateMinutes min</span> }
                                 </div>
                             </div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="color:#4361ee; font-size:1.4rem; font-weight:800;">@elapsedTime</div>
-                            <div style="color:#6666aa; font-size:0.72rem;">worked so far</div>
+                            <div style="color:#4361ee; font-size:1.8rem; font-weight:900; font-family:monospace;">@sessionElapsed</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">this session</div>
+                        </div>
+                    </div>
+                }
+                else if (att != null)
+                {
+                    <!-- Punched out (but can punch in again) -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="width:12px; height:12px; border-radius:50%; background:#f59e0b;"></div>
+                            <div>
+                                <div style="color:#f59e0b; font-weight:700;">On Break / Punched Out</div>
+                                <div style="color:#6666aa; font-size:0.78rem; margin-top:2px;">
+                                    You can punch in again anytime
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#818cf8; font-size:1.6rem; font-weight:900;">@($"{att.WorkingHours:F2}h")</div>
+                            <div style="color:#6666aa; font-size:0.72rem;">accumulated today</div>
                         </div>
                     </div>
                 }
                 else
                 {
-                    <div>
-                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                            <div style="width:10px; height:10px; border-radius:50%; background:#4361ee;"></div>
-                            <span style="color:#818cf8; font-weight:700;">Shift Completed</span>
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
-                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">CHECK IN</div>
-                                    <div style="color:#22c55e; font-weight:700;">@att.CheckInTime?.ToString("hh:mm tt")</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
-                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">CHECK OUT</div>
-                                    <div style="color:#ef4444; font-weight:700;">@att.CheckOutTime?.ToString("hh:mm tt")</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
-                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">TOTAL HOURS</div>
-                                    <div style="color:#818cf8; font-weight:700; font-size:1.1rem;">@($"{att.WorkingHours:F1}h")</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div style="background:#1a1a2e; border-radius:8px; padding:10px; text-align:center;">
-                                    <div style="color:#6666aa; font-size:0.72rem; margin-bottom:4px;">OVERTIME</div>
-                                    <div style="color:#f59e0b; font-weight:700; font-size:1.1rem;">
-                                        @(att.OvertimeHours > 0 ? $"+{att.OvertimeHours:F1}h" : "—")
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:12px; height:12px; border-radius:50%; background:#4a4a6a;"></div>
+                        <div style="color:#8888aa;">Not started today — punch in to begin</div>
                     </div>
                 }
             </div>
 
+            <!-- Daily totals row -->
+            @if (att != null)
+            {
+                <div class="row g-2 mb-20" style="margin-bottom:18px;">
+                    <div class="col-3">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:10px; text-align:center;">
+                            <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:4px;">Punches</div>
+                            <div style="color:#818cf8; font-size:1.3rem; font-weight:800;">@punches.Count</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:10px; text-align:center;">
+                            <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:4px;">Total</div>
+                            <div style="color:#22c55e; font-size:1.3rem; font-weight:800;">@($"{att.WorkingHours:F1}h")</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:10px; text-align:center;">
+                            <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:4px;">Required</div>
+                            <div style="color:#8888aa; font-size:1.3rem; font-weight:800;">@($"{settings.RequiredWorkingHours:F0}h")</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div style="background:#0f0f1a; border-radius:8px; padding:10px; text-align:center;">
+                            <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:4px;">
+                                @(att.OvertimeHours > 0 ? "Overtime" : "Short")
+                            </div>
+                            <div style="color:@(att.OvertimeHours > 0 ? "#f59e0b" : "#ef4444"); font-size:1.3rem; font-weight:800;">
+                                @(att.OvertimeHours > 0 ? $"+{att.OvertimeHours:F1}h" : $"-{att.ShortHours:F1}h")
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress bar toward required hours -->
+                @{
+                    double pct = att.RequiredHours > 0
+                        ? Math.Min(100, att.WorkingHours / att.RequiredHours * 100) : 0;
+                }
+                <div style="margin-bottom:18px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="color:#6666aa; font-size:0.75rem;">Daily Progress</span>
+                        <span style="color:@(pct >= 100 ? "#22c55e" : "#818cf8"); font-size:0.75rem; font-weight:600;">@($"{pct:F0}%")</span>
+                    </div>
+                    <div style="height:8px; background:#2a2a4a; border-radius:4px; overflow:hidden;">
+                        <div style="height:8px; border-radius:4px; transition:width 0.5s; width:@($"{pct:F1}%"); background:@(pct >= 100 ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#4361ee,#7209b7)");"></div>
+                    </div>
+                </div>
+            }
+
+            <!-- Message -->
             @if (!string.IsNullOrEmpty(message))
             {
-                <div style="padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:0.88rem; display:flex; align-items:center; gap:10px;
+                <div style="padding:12px 16px; border-radius:8px; margin-bottom:18px; font-size:0.88rem; display:flex; align-items:center; gap:10px;
                     background:@(isSuccess ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)");
                     border:1px solid @(isSuccess ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)");
                     color:@(isSuccess ? "#22c55e" : "#ef4444");">
@@ -101,102 +138,169 @@
                 </div>
             }
 
-            <!-- Action Buttons -->
+            <!-- Buttons -->
             <div class="d-flex gap-3">
-                <button @onclick="DoCheckIn"
-                        disabled="@(att != null)"
-                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:@(att == null ? "pointer" : "default"); transition:all 0.2s;
-                            background:@(att == null ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e2a1e");
-                            color:@(att == null ? "white" : "#3a5a3a");
-                            box-shadow:@(att == null ? "0 4px 15px rgba(34,197,94,0.3)" : "none");">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Check In
+                <button @onclick="DoPunchIn"
+                        disabled="@(openPunch != null)"
+                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; transition:all 0.2s;
+                            cursor:@(openPunch == null ? "pointer" : "default");
+                            background:@(openPunch == null ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1c2a1c");
+                            color:@(openPunch == null ? "white" : "#3a5a3a");
+                            box-shadow:@(openPunch == null ? "0 4px 20px rgba(34,197,94,0.35)" : "none");">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Punch In
                 </button>
-                <button @onclick="DoCheckOut"
-                        disabled="@(att == null || att.CheckOutTime != null)"
-                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:@(att != null && att.CheckOutTime == null ? "pointer" : "default"); transition:all 0.2s;
-                            background:@(att != null && att.CheckOutTime == null ? "linear-gradient(135deg,#ef4444,#dc2626)" : "#2a1e1e");
-                            color:@(att != null && att.CheckOutTime == null ? "white" : "#5a3a3a");
-                            box-shadow:@(att != null && att.CheckOutTime == null ? "0 4px 15px rgba(239,68,68,0.3)" : "none");">
-                    <i class="bi bi-box-arrow-left me-2"></i>Check Out
+                <button @onclick="DoPunchOut"
+                        disabled="@(openPunch == null)"
+                        style="flex:1; padding:18px; border:none; border-radius:10px; font-weight:700; font-size:1rem; transition:all 0.2s;
+                            cursor:@(openPunch != null ? "pointer" : "default");
+                            background:@(openPunch != null ? "linear-gradient(135deg,#ef4444,#dc2626)" : "#2a1c1c");
+                            color:@(openPunch != null ? "white" : "#5a3a3a");
+                            box-shadow:@(openPunch != null ? "0 4px 20px rgba(239,68,68,0.35)" : "none");">
+                    <i class="bi bi-box-arrow-left me-2"></i>Punch Out
                 </button>
             </div>
         </div>
+
+        <!-- ── Today's Punch History ── -->
+        @if (punches.Any())
+        {
+            <div style="background:#1a1a2e; border-radius:12px; padding:22px; border:1px solid #2a2a4a; margin-top:16px;">
+                <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:16px;">
+                    <i class="bi bi-clock-history me-2" style="color:#4361ee;"></i>Today's Punch History
+                </h6>
+                <table style="width:100%; font-size:0.83rem; border-collapse:collapse;">
+                    <thead>
+                        <tr style="color:#6666aa; font-size:0.72rem; text-transform:uppercase;">
+                            <th style="padding:6px 10px; text-align:left;">#</th>
+                            <th style="padding:6px 10px; text-align:left; color:#22c55e;">Punch In</th>
+                            <th style="padding:6px 10px; text-align:left; color:#ef4444;">Punch Out</th>
+                            <th style="padding:6px 10px; text-align:right; color:#818cf8;">Session</th>
+                            <th style="padding:6px 10px; text-align:center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int pi = 1; }
+                        @foreach (var p in punches)
+                        {
+                            bool isOpen = p.PunchOut == null;
+                            <tr style="border-top:1px solid #1e2040; @(isOpen ? "background:rgba(34,197,94,0.05);" : "")">
+                                <td style="padding:9px 10px; color:#6666aa;">@(pi++)</td>
+                                <td style="padding:9px 10px; color:#22c55e; font-weight:600;">@p.PunchIn.ToString("hh:mm:ss tt")</td>
+                                <td style="padding:9px 10px; color:#ef4444; font-weight:600;">@(p.PunchOut?.ToString("hh:mm:ss tt") ?? "—")</td>
+                                <td style="padding:9px 10px; text-align:right; color:#818cf8; font-weight:700;">
+                                    @if (p.PunchOut != null)
+                                    { <span>@($"{p.SessionHours:F2}h")</span> }
+                                    else
+                                    { <span style="color:#22c55e; font-family:monospace;">@liveSession</span> }
+                                </td>
+                                <td style="padding:9px 10px; text-align:center;">
+                                    @if (isOpen)
+                                    {
+                                        <span style="background:rgba(34,197,94,0.15); color:#22c55e; padding:2px 10px; border-radius:20px; font-size:0.72rem; font-weight:600;">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="background:rgba(67,97,238,0.12); color:#818cf8; padding:2px 10px; border-radius:20px; font-size:0.72rem;">Done</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    @if (att != null && punches.Count > 1)
+                    {
+                        <tfoot>
+                            <tr style="border-top:2px solid #2a2a4a; background:#0f0f1a;">
+                                <td colspan="3" style="padding:9px 10px; color:#8888aa; font-weight:600; font-size:0.8rem;">TOTAL WORKED TODAY</td>
+                                <td style="padding:9px 10px; text-align:right; color:#22c55e; font-weight:800; font-size:0.95rem;">@($"{att.WorkingHours:F2}h")</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    }
+                </table>
+            </div>
+        }
     </div>
 
-    <!-- Office Hours Info -->
-    <div class="col-md-6">
-        <div style="background:#1a1a2e; border-radius:14px; padding:28px; border:1px solid #2a2a4a; margin-bottom:16px;">
-            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:20px;">
-                <i class="bi bi-building me-2" style="color:#4361ee;"></i>Office Hours
+    <!-- ── RIGHT: Office info + Week ── -->
+    <div class="col-lg-5">
+        <!-- Office Hours -->
+        <div style="background:#1a1a2e; border-radius:14px; padding:24px; border:1px solid #2a2a4a; margin-bottom:16px;">
+            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:16px;">
+                <i class="bi bi-building me-2" style="color:#4361ee;"></i>Your Shift
+                @if (!string.IsNullOrEmpty(Auth.CurrentEmployee?.ShiftName))
+                { <span style="background:rgba(114,9,183,0.15); color:#c084fc; padding:2px 10px; border-radius:20px; font-size:0.72rem; margin-left:8px;">@Auth.CurrentEmployee.ShiftName</span> }
             </h6>
-            <div class="row g-3">
+            <div class="row g-2 mb-3">
                 <div class="col-6">
                     <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
-                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Opens</div>
-                        <div style="color:#22c55e; font-size:1.3rem; font-weight:800;">@FormatTime(settings.OfficeStartTime)</div>
+                        <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:6px;">Opens</div>
+                        <div style="color:#22c55e; font-size:1.4rem; font-weight:900;">@FormatTime(settings.OfficeStartTime)</div>
                     </div>
                 </div>
                 <div class="col-6">
                     <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
-                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Closes</div>
-                        <div style="color:#ef4444; font-size:1.3rem; font-weight:800;">@FormatTime(settings.OfficeEndTime)</div>
+                        <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:6px;">Closes</div>
+                        <div style="color:#ef4444; font-size:1.4rem; font-weight:900;">@FormatTime(settings.OfficeEndTime)</div>
                     </div>
                 </div>
                 <div class="col-6">
                     <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
-                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Shift</div>
-                        <div style="color:#818cf8; font-size:1.3rem; font-weight:800;">@settings.RequiredWorkingHours h</div>
+                        <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:6px;">Required</div>
+                        <div style="color:#818cf8; font-size:1.4rem; font-weight:900;">@($"{settings.RequiredWorkingHours:F0}h")</div>
                     </div>
                 </div>
                 <div class="col-6">
                     <div style="background:#0f0f1a; border-radius:8px; padding:14px; text-align:center;">
-                        <div style="color:#6666aa; font-size:0.72rem; margin-bottom:6px; text-transform:uppercase;">Grace Time</div>
-                        <div style="color:#f59e0b; font-size:1.3rem; font-weight:800;">@settings.GraceTimeMinutes min</div>
+                        <div style="color:#6666aa; font-size:0.65rem; text-transform:uppercase; margin-bottom:6px;">Grace</div>
+                        <div style="color:#f59e0b; font-size:1.4rem; font-weight:900;">@settings.GraceTimeMinutes m</div>
                     </div>
                 </div>
             </div>
-            <div style="margin-top:16px; padding:12px; background:#0f0f1a; border-radius:8px; display:flex; align-items:center; gap:10px;">
+            <div style="padding:10px 14px; background:#0f0f1a; border-radius:8px; display:flex; gap:8px; align-items:center;">
                 <i class="bi bi-info-circle" style="color:#4361ee;"></i>
-                <span style="color:#8888aa; font-size:0.82rem;">
-                    Late mark applies after <strong style="color:#f59e0b;">@FormatTime(settings.OfficeStartTime.Add(TimeSpan.FromMinutes(settings.GraceTimeMinutes)))</strong>
+                <span style="color:#8888aa; font-size:0.8rem;">
+                    Late after <strong style="color:#f59e0b;">@FormatTime(settings.OfficeStartTime.Add(TimeSpan.FromMinutes(settings.GraceTimeMinutes)))</strong>
                 </span>
             </div>
         </div>
 
-        <!-- Weekly Attendance Summary -->
-        <div style="background:#1a1a2e; border-radius:14px; padding:28px; border:1px solid #2a2a4a;">
-            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:20px;">
+        <!-- This Week -->
+        <div style="background:#1a1a2e; border-radius:14px; padding:24px; border:1px solid #2a2a4a;">
+            <h6 style="color:#e0e0ff; font-weight:600; margin-bottom:16px;">
                 <i class="bi bi-calendar-week me-2" style="color:#4361ee;"></i>This Week
             </h6>
             @{
                 var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+                if ((int)DateTime.Today.DayOfWeek == 0) weekStart = DateTime.Today.AddDays(-6);
             }
             <div class="d-flex gap-2">
                 @for (int i = 0; i < 7; i++)
                 {
                     var day = weekStart.AddDays(i);
                     var dayAtt = weekAtt.FirstOrDefault(a => a.Date.Date == day.Date);
-                    bool isToday = day.Date == DateTime.Today;
-                    bool isFuture = day.Date > DateTime.Today;
+                    bool isToday   = day.Date == DateTime.Today;
+                    bool isFuture  = day.Date > DateTime.Today;
                     bool isWeekend = day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday;
-                    string bg = isFuture || isWeekend ? "#0f0f1a" :
-                                dayAtt?.Status == Models.AttendanceStatus.Present ? "rgba(34,197,94,0.15)" :
-                                dayAtt?.Status == Models.AttendanceStatus.Late ? "rgba(245,158,11,0.15)" :
-                                dayAtt?.IsEarlyExit == true ? "rgba(6,182,212,0.15)" :
-                                dayAtt != null ? "rgba(67,97,238,0.15)" : "rgba(239,68,68,0.1)";
-                    string col = isFuture || isWeekend ? "#4a4a6a" :
+
+                    string bg  = isWeekend ? "#0f0f1a" : isFuture ? "#0f0f1a" :
+                                 dayAtt?.Status == Models.AttendanceStatus.Present ? "rgba(34,197,94,0.15)" :
+                                 dayAtt?.Status == Models.AttendanceStatus.Late    ? "rgba(245,158,11,0.15)" :
+                                 dayAtt?.IsEarlyExit == true ? "rgba(6,182,212,0.15)" :
+                                 dayAtt != null ? "rgba(67,97,238,0.15)" : "rgba(239,68,68,0.08)";
+                    string col = isWeekend || isFuture ? "#4a4a6a" :
                                  dayAtt?.Status == Models.AttendanceStatus.Present ? "#22c55e" :
-                                 dayAtt?.Status == Models.AttendanceStatus.Late ? "#f59e0b" :
+                                 dayAtt?.Status == Models.AttendanceStatus.Late    ? "#f59e0b" :
                                  dayAtt?.IsEarlyExit == true ? "#06b6d4" :
                                  dayAtt != null ? "#818cf8" : "#ef4444";
-                    <div style="flex:1; background:@bg; border-radius:8px; padding:10px 4px; text-align:center; border:@(isToday ? "1px solid #4361ee" : "1px solid transparent");">
-                        <div style="color:#6666aa; font-size:0.65rem; margin-bottom:4px;">@day.ToString("ddd")[..2]</div>
-                        <div style="color:@col; font-size:0.7rem; font-weight:700;">@day.Day</div>
-                        <div style="margin-top:4px; font-size:0.6rem; color:@col;">
-                            @if (isWeekend) { <span>Off</span> }
-                            else if (isFuture) { <span style="color:#3a3a6a;">—</span> }
-                            else if (dayAtt == null) { <span>Abs</span> }
-                            else { <span>@dayAtt.Status.ToString()[..3]</span> }
+                    <div style="flex:1; background:@bg; border-radius:8px; padding:10px 4px; text-align:center; border:@(isToday ? "2px solid #4361ee" : "1px solid transparent");">
+                        <div style="color:#6666aa; font-size:0.62rem; margin-bottom:4px;">@day.ToString("ddd")[..2]</div>
+                        <div style="color:@(isToday ? "#818cf8" : "#8888aa"); font-size:0.78rem; font-weight:@(isToday ? "800" : "400");">@day.Day</div>
+                        <div style="margin-top:5px; font-size:0.6rem; color:@col; font-weight:600;">
+                            @if (isWeekend)              { <text>Off</text> }
+                            else if (isFuture)           { <text style="color:#3a3a6a;">—</text> }
+                            else if (dayAtt == null)     { <text>Abs</text> }
+                            else if (dayAtt.WorkingHours > 0) { <text>@($"{dayAtt.WorkingHours:F1}h")</text> }
+                            else                         { @dayAtt.Status.ToString()[..3] }
                         </div>
                     </div>
                 }
@@ -205,36 +309,55 @@
     </div>
 </div>
 
+<style>
+@@keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 10px #22c55e; }
+    50%       { opacity: 0.6; box-shadow: 0 0 4px #22c55e; }
+}
+</style>
+
 @code {
     private AttRec? att;
-    private string currentTime = DateTime.Now.ToString("hh:mm:ss tt");
-    private string elapsedTime = "";
-    private string message = "";
-    private bool isSuccess;
-    private System.Threading.Timer? _timer;
-    private Models.CompanySettings settings = new();
+    private PunchRec? openPunch;
+    private List<PunchRec> punches = new();
     private List<AttRec> weekAtt = new();
+    private Models.CompanySettings settings = new();
+
+    private string currentTime  = DateTime.Now.ToString("hh:mm:ss tt");
+    private string sessionElapsed = "00:00:00";
+    private string liveSession  = "0.00h";
+    private string message      = "";
+    private bool   isSuccess;
+
+    private System.Threading.Timer? _timer;
 
     protected override void OnInitialized()
     {
         if (!Auth.IsEmployeeLoggedIn) return;
-        settings = Svc.GetSettings();
+
+        var raw = Svc.GetSettings();
+        // override with employee custom shift
         var emp = Auth.CurrentEmployee!;
-        // Override with employee's custom shift if set
         var (s, e, h) = Svc.GetEffectiveShift(emp);
-        settings.OfficeStartTime = s;
-        settings.OfficeEndTime   = e;
+        settings = raw;
+        settings.OfficeStartTime      = s;
+        settings.OfficeEndTime        = e;
         settings.RequiredWorkingHours = h;
+
         Refresh();
+
         var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
-        weekAtt = Svc.GetAttendanceByEmployee(Auth.CurrentEmployee!.Id, weekStart, weekStart.AddDays(6));
+        if ((int)DateTime.Today.DayOfWeek == 0) weekStart = DateTime.Today.AddDays(-6);
+        weekAtt = Svc.GetAttendanceByEmployee(emp.Id, weekStart, weekStart.AddDays(6));
+
         _timer = new System.Threading.Timer(_ =>
         {
             currentTime = DateTime.Now.ToString("hh:mm:ss tt");
-            if (att?.CheckInTime != null && att.CheckOutTime == null)
+            if (openPunch != null)
             {
-                var elapsed = DateTime.Now - att.CheckInTime.Value;
-                elapsedTime = $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+                var elapsed = DateTime.Now - openPunch.PunchIn;
+                sessionElapsed = $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+                liveSession    = $"{elapsed.TotalHours:F2}h";
             }
             InvokeAsync(StateHasChanged);
         }, null, 0, 1000);
@@ -242,35 +365,26 @@
 
     private void Refresh()
     {
-        att = Svc.GetTodayAttendance(Auth.CurrentEmployee!.Id);
+        var empId = Auth.CurrentEmployee!.Id;
+        att       = Svc.GetTodayAttendance(empId);
+        punches   = Svc.GetTodayPunches(empId);
+        openPunch = punches.FirstOrDefault(p => p.PunchOut == null);
     }
 
-    private void DoCheckIn()
+    private void DoPunchIn()
     {
-        bool ok = Svc.CheckIn(Auth.CurrentEmployee!.Id);
+        var (ok, msg) = Svc.PunchIn(Auth.CurrentEmployee!.Id);
+        isSuccess = ok; message = msg;
         Refresh();
-        isSuccess = ok;
-        if (ok)
-        {
-            var lateMsg = att?.IsLate == true ? $" — Late by {att.LateMinutes} min" : "";
-            message = $"Checked in at {att?.CheckInTime?.ToString("hh:mm tt")}{lateMsg}";
-        }
-        else
-            message = "You have already checked in today.";
     }
 
-    private void DoCheckOut()
+    private void DoPunchOut()
     {
-        bool ok = Svc.CheckOut(Auth.CurrentEmployee!.Id);
+        var (ok, msg) = Svc.PunchOut(Auth.CurrentEmployee!.Id);
+        isSuccess = ok; message = msg;
         Refresh();
-        isSuccess = ok;
-        if (ok)
-            message = $"Checked out at {att?.CheckOutTime?.ToString("hh:mm tt")} — {att?.WorkingHours:F1}h worked";
-        else
-            message = "Check out failed. Please try again.";
     }
 
     private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
-
     public void Dispose() => _timer?.Dispose();
 }
