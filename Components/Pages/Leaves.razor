@@ -3,96 +3,221 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-
 @using KRD.AttendanceWeb.Models
 
-@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
-<h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">
-    @(Auth.IsAdminLoggedIn ? "Leave Requests" : "Apply for Leave")
-</h4>
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 style="color:#e0e0ff; font-weight:700; margin:0;">@(Auth.IsAdminLoggedIn ? "Leave Requests" : "My Leaves")</h4>
+        <p style="color:#6666aa; font-size:0.83rem; margin:4px 0 0;">
+            @leaves.Count(l => l.Status == LeaveStatus.Pending) pending · @leaves.Count(l => l.Status == LeaveStatus.Approved) approved
+        </p>
+    </div>
+</div>
 
+<!-- Employee: Apply Form -->
 @if (!Auth.IsAdminLoggedIn)
 {
-    <!-- Apply form -->
-    <div style="background:#1a1a2e; border-radius:10px; padding:24px; border:1px solid #2a2a4a; max-width:500px; margin-bottom:28px;">
-        <h6 style="color:#e0e0ff; margin-bottom:18px;">New Application</h6>
+    <div style="background:#1a1a2e; border-radius:12px; padding:24px; border:1px solid #2a2a4a; max-width:620px; margin-bottom:24px;">
+        <h6 style="color:#e0e0ff; font-weight:700; margin-bottom:18px; font-size:0.9rem;">
+            <i class="bi bi-send me-2" style="color:#4361ee;"></i>Apply for Leave
+        </h6>
         <div class="row g-3">
-            <div class="col-md-6">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Leave Type</label>
-                <select @bind="leaveType" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;">
+            <div class="col-md-4">
+                <label style="@LblStyle">Leave Type</label>
+                <select @bind="leaveType" style="@FldStyle">
                     @foreach (var lt in Enum.GetValues<LeaveType>())
                     { <option value="@lt">@lt</option> }
                 </select>
             </div>
-            <div class="col-md-3">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Start</label>
-                <input type="date" @bind="startDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            <div class="col-md-4">
+                <label style="@LblStyle">Start Date</label>
+                <input type="date" @bind="startDate" style="@FldStyle" />
             </div>
-            <div class="col-md-3">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">End</label>
-                <input type="date" @bind="endDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            <div class="col-md-4">
+                <label style="@LblStyle">End Date</label>
+                <input type="date" @bind="endDate" style="@FldStyle" />
             </div>
             <div class="col-12">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Reason</label>
-                <textarea @bind="reason" rows="3" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; resize:vertical; box-sizing:border-box;"></textarea>
+                <label style="@LblStyle">Reason *</label>
+                <textarea @bind="reason" rows="2" placeholder="Briefly describe your reason..."
+                          style="@FldStyle resize:vertical;"></textarea>
             </div>
         </div>
         @if (!string.IsNullOrEmpty(applyMsg))
         {
-            <div style="color:@(applyOk ? "#22c55e" : "#ef4444"); font-size:0.82rem; margin-top:10px;">@applyMsg</div>
+            <div style="margin-top:12px; padding:10px 14px; border-radius:8px; font-size:0.85rem;
+                background:@(applyOk ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)");
+                border:1px solid @(applyOk ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)");
+                color:@(applyOk ? "#22c55e" : "#ef4444");">
+                <i class="bi @(applyOk ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill") me-2"></i>@applyMsg
+            </div>
         }
-        <button @onclick="SubmitLeave" style="margin-top:14px; padding:10px 24px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
-            Submit Application
+        <button @onclick="SubmitLeave" style="margin-top:14px; padding:10px 24px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer; font-size:0.9rem;">
+            <i class="bi bi-send me-2"></i>Submit Application
         </button>
+    </div>
+}
+
+<!-- Filter (admin) -->
+@if (Auth.IsAdminLoggedIn)
+{
+    <div style="background:#1a1a2e; border-radius:10px; padding:14px 18px; border:1px solid #2a2a4a; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <select @bind="filterStatus" style="padding:8px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.85rem;">
+            <option value="">All Status</option>
+            @foreach (var s in Enum.GetValues<LeaveStatus>())
+            { <option value="@s">@s</option> }
+        </select>
+        <select @bind="filterType" style="padding:8px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.85rem;">
+            <option value="">All Types</option>
+            @foreach (var t in Enum.GetValues<LeaveType>())
+            { <option value="@t">@t</option> }
+        </select>
+        <span style="color:#6666aa; font-size:0.82rem; margin-left:auto;">@FilteredLeaves().Count() result(s)</span>
     </div>
 }
 
 <!-- Table -->
 <div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
-    <table class="table table-dark table-hover mb-0">
-        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
-            @if (Auth.IsAdminLoggedIn) { <th>Employee</th> }
-            <th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Reason</th><th>Status</th>
-            @if (Auth.IsAdminLoggedIn) { <th>Actions</th> }
-        </tr></thead>
-        <tbody>
-            @foreach (var l in leaves)
-            {
-                <tr style="color:#c0c0e0; vertical-align:middle;">
-                    @if (Auth.IsAdminLoggedIn) { <td>@(l.Employee?.FullName ?? $"ID:{l.EmployeeId}")</td> }
-                    <td>@l.LeaveType</td>
-                    <td>@l.StartDate.ToString("MMM dd")</td>
-                    <td>@l.EndDate.ToString("MMM dd, yyyy")</td>
-                    <td>@l.TotalDays</td>
-                    <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@l.Reason</td>
-                    <td><StatusBadge Status="@l.Status.ToString()"/></td>
-                    @if (Auth.IsAdminLoggedIn && l.Status == LeaveStatus.Pending)
-                    {
-                        <td>
-                            <button @onclick="() => UpdateStatus(l.Id, LeaveStatus.Approved)" style="padding:4px 10px; background:#22c55e22; color:#22c55e; border:1px solid #22c55e44; border-radius:6px; font-size:0.8rem; cursor:pointer; margin-right:5px;">Approve</button>
-                            <button @onclick="() => UpdateStatus(l.Id, LeaveStatus.Rejected)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Reject</button>
-                        </td>
-                    }
-                    else if (Auth.IsAdminLoggedIn) { <td>—</td> }
+    <div style="overflow-x:auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size:0.85rem;">
+            <thead>
+                <tr style="color:#6666aa; font-size:0.75rem; text-transform:uppercase; background:#16213e;">
+                    @if (Auth.IsAdminLoggedIn) { <th style="padding:12px 16px;">Employee</th> }
+                    <th style="padding:12px 16px;">Type</th>
+                    <th style="padding:12px 16px;">Start</th>
+                    <th style="padding:12px 16px;">End</th>
+                    <th style="padding:12px 16px;">Days</th>
+                    <th style="padding:12px 16px;">Reason</th>
+                    <th style="padding:12px 16px;">Applied</th>
+                    <th style="padding:12px 16px;">Status</th>
+                    @if (Auth.IsAdminLoggedIn) { <th style="padding:12px 16px;">Actions</th> }
                 </tr>
-            }
-            @if (!leaves.Any())
-            {
-                <tr><td colspan="8" style="text-align:center; color:#4a4a6a; padding:24px;">No leave requests</td></tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var l in FilteredLeaves())
+                {
+                    <tr style="color:#c0c0e0; vertical-align:middle; border-bottom:1px solid #1e2040;">
+                        @if (Auth.IsAdminLoggedIn)
+                        {
+                            <td style="padding:11px 16px; font-weight:600; color:#e0e0ff;">@(l.Employee?.FullName ?? "—")</td>
+                        }
+                        <td style="padding:11px 16px;">
+                            <span style="background:rgba(129,140,248,0.12); color:#818cf8; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">@l.LeaveType</span>
+                        </td>
+                        <td style="padding:11px 16px; color:#8888aa;">@l.StartDate.ToString("MMM dd, yyyy")</td>
+                        <td style="padding:11px 16px; color:#8888aa;">@l.EndDate.ToString("MMM dd, yyyy")</td>
+                        <td style="padding:11px 16px; color:#e0e0ff; font-weight:700; text-align:center;">@l.TotalDays</td>
+                        <td style="padding:11px 16px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#8888aa;" title="@l.Reason">@l.Reason</td>
+                        <td style="padding:11px 16px; color:#6666aa; font-size:0.8rem;">@l.AppliedDate.ToString("MMM dd")</td>
+                        <td style="padding:11px 16px;"><StatusBadge Status="@l.Status.ToString()"/></td>
+                        @if (Auth.IsAdminLoggedIn)
+                        {
+                            <td style="padding:11px 16px;">
+                                @if (l.Status == LeaveStatus.Pending)
+                                {
+                                    <button @onclick="() => OpenReview(l)"
+                                            style="padding:5px 10px; background:rgba(67,97,238,0.15); color:#818cf8; border:1px solid rgba(67,97,238,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer;">
+                                        <i class="bi bi-clipboard-check me-1"></i>Review
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span style="color:#4a4a6a; font-size:0.78rem;">@(l.ReviewedDate?.ToString("MMM dd") ?? "—")</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+                @if (!FilteredLeaves().Any())
+                {
+                    <tr><td colspan="9" style="text-align:center; color:#4a4a6a; padding:32px;">
+                        <i class="bi bi-calendar-x" style="font-size:2rem; display:block; margin-bottom:8px; color:#2a2a4a;"></i>
+                        No leave requests found
+                    </td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- Review Modal (Admin) -->
+@if (showReview && Auth.IsAdminLoggedIn && reviewLeave != null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:2000;">
+        <div style="background:#1a1a2e; border-radius:14px; padding:32px; width:460px; border:1px solid #2a2a4a; box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h5 style="color:#e0e0ff; font-weight:700; margin:0;">Review Leave Request</h5>
+                <button @onclick="() => showReview=false" style="background:none; border:none; color:#6666aa; font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">×</button>
+            </div>
+
+            <div style="background:#0f0f1a; border-radius:8px; padding:16px; margin-bottom:18px;">
+                <div class="row g-2" style="font-size:0.85rem;">
+                    <div class="col-6">
+                        <span style="color:#6666aa;">Employee:</span>
+                        <span style="color:#e0e0ff; font-weight:600; margin-left:6px;">@reviewLeave.Employee?.FullName</span>
+                    </div>
+                    <div class="col-6">
+                        <span style="color:#6666aa;">Type:</span>
+                        <span style="color:#818cf8; font-weight:600; margin-left:6px;">@reviewLeave.LeaveType</span>
+                    </div>
+                    <div class="col-6">
+                        <span style="color:#6666aa;">From:</span>
+                        <span style="color:#e0e0ff; margin-left:6px;">@reviewLeave.StartDate.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="col-6">
+                        <span style="color:#6666aa;">To:</span>
+                        <span style="color:#e0e0ff; margin-left:6px;">@reviewLeave.EndDate.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="col-12" style="margin-top:4px;">
+                        <span style="color:#6666aa;">Reason:</span>
+                        <span style="color:#c0c0e0; margin-left:6px;">@reviewLeave.Reason</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="@LblStyle">Admin Remarks (optional)</label>
+                <textarea @bind="adminRemarks" rows="2" placeholder="Add a note for the employee..."
+                          style="@FldStyle resize:none;"></textarea>
+            </div>
+
+            <div class="d-flex gap-3">
+                <button @onclick="() => DoReview(LeaveStatus.Approved)"
+                        style="flex:1; padding:12px; background:linear-gradient(135deg,#22c55e,#16a34a); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">
+                    <i class="bi bi-check-circle me-2"></i>Approve
+                </button>
+                <button @onclick="() => DoReview(LeaveStatus.Rejected)"
+                        style="flex:1; padding:12px; background:linear-gradient(135deg,#ef4444,#dc2626); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">
+                    <i class="bi bi-x-circle me-2"></i>Reject
+                </button>
+                <button @onclick="() => showReview=false"
+                        style="padding:12px 16px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<Leave> leaves = new();
+    private string filterStatus = "", filterType = "";
     private LeaveType leaveType = LeaveType.Casual;
     private DateTime startDate = DateTime.Today.AddDays(1);
     private DateTime endDate   = DateTime.Today.AddDays(1);
-    private string reason = "";
-    private string applyMsg = "";
+    private string reason = "", applyMsg = "";
     private bool applyOk;
+
+    // Review modal
+    private bool showReview;
+    private Leave? reviewLeave;
+    private string adminRemarks = "";
+
+    private string LblStyle => "color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:5px;";
+    private string FldStyle => "width:100%; padding:9px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; box-sizing:border-box;";
 
     protected override void OnInitialized() => Reload();
 
@@ -103,28 +228,46 @@
             : Svc.GetLeavesByEmployee(Auth.CurrentEmployee!.Id);
     }
 
+    private IEnumerable<Leave> FilteredLeaves()
+    {
+        var q = leaves.AsEnumerable();
+        if (!string.IsNullOrEmpty(filterStatus) && Enum.TryParse<LeaveStatus>(filterStatus, out var ls))
+            q = q.Where(l => l.Status == ls);
+        if (!string.IsNullOrEmpty(filterType) && Enum.TryParse<LeaveType>(filterType, out var lt))
+            q = q.Where(l => l.LeaveType == lt);
+        return q;
+    }
+
     private void SubmitLeave()
     {
-        if (string.IsNullOrWhiteSpace(reason)) { applyMsg = "Please enter a reason."; applyOk = false; return; }
-        if (endDate < startDate) { applyMsg = "End date must be after start date."; applyOk = false; return; }
+        applyMsg = ""; applyOk = false;
+        if (string.IsNullOrWhiteSpace(reason)) { applyMsg = "Please enter a reason."; return; }
+        if (endDate < startDate) { applyMsg = "End date must be on or after start date."; return; }
         Svc.ApplyLeave(new Leave
         {
-            EmployeeId = Auth.CurrentEmployee!.Id,
-            LeaveType  = leaveType,
-            StartDate  = startDate,
-            EndDate    = endDate,
-            TotalDays  = (int)(endDate - startDate).TotalDays + 1,
-            Reason     = reason,
-            Status     = LeaveStatus.Pending,
-            AppliedDate= DateTime.Now
+            EmployeeId  = Auth.CurrentEmployee!.Id,
+            LeaveType   = leaveType,
+            StartDate   = startDate,
+            EndDate     = endDate,
+            TotalDays   = (int)(endDate - startDate).TotalDays + 1,
+            Reason      = reason.Trim(),
+            Status      = LeaveStatus.Pending,
+            AppliedDate = DateTime.Now
         });
-        reason = ""; applyOk = true; applyMsg = "✔ Leave application submitted successfully!";
+        reason = ""; applyOk = true; applyMsg = "Leave application submitted successfully!";
         Reload();
     }
 
-    private void UpdateStatus(int id, LeaveStatus status)
+    private void OpenReview(Leave l)
     {
-        Svc.UpdateLeaveStatus(id, status, Auth.CurrentAdmin!.Id);
+        reviewLeave = l; adminRemarks = ""; showReview = true;
+    }
+
+    private void DoReview(LeaveStatus status)
+    {
+        if (reviewLeave == null) return;
+        Svc.UpdateLeaveStatusWithRemarks(reviewLeave.Id, status, Auth.CurrentAdmin!.Id, adminRemarks);
+        showReview = false;
         Reload();
     }
 }

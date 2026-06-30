@@ -2,83 +2,160 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-
 @using KRD.AttendanceWeb.Models
 
-@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Holiday Management</h4>
-    <button @onclick="() => showAdd=true" style="padding:9px 18px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Holiday Management</h4>
+        <p style="color:#6666aa; font-size:0.83rem; margin:4px 0 0;">@holidays.Count holiday(s) defined</p>
+    </div>
+    <button @onclick="() => OpenAdd()" style="padding:9px 18px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
         <i class="bi bi-plus-lg me-2"></i>Add Holiday
     </button>
 </div>
 
-@if (showAdd)
+<!-- Year filter -->
+<div style="margin-bottom:16px; display:flex; gap:10px; align-items:center;">
+    <select @bind="filterYear" style="padding:8px 12px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem;">
+        @for (int y = DateTime.Today.Year - 1; y <= DateTime.Today.Year + 2; y++)
+        { <option value="@y">@y</option> }
+    </select>
+    <span style="color:#6666aa; font-size:0.83rem;">@FilteredHolidays().Count() holiday(s) in @filterYear</span>
+</div>
+
+<!-- Table -->
+<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
+    <div style="overflow-x:auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size:0.85rem;">
+            <thead>
+                <tr style="color:#6666aa; font-size:0.75rem; text-transform:uppercase; background:#16213e;">
+                    <th style="padding:12px 16px;">#</th>
+                    <th style="padding:12px 16px;">Name</th>
+                    <th style="padding:12px 16px;">Date</th>
+                    <th style="padding:12px 16px;">Day</th>
+                    <th style="padding:12px 16px;">Description</th>
+                    <th style="padding:12px 16px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int idx = 1; }
+                @foreach (var h in FilteredHolidays())
+                {
+                    bool isPast = h.Date.Date < DateTime.Today;
+                    bool isToday = h.Date.Date == DateTime.Today;
+                    <tr style="color:#c0c0e0; vertical-align:middle; border-bottom:1px solid #1e2040; @(isPast ? "opacity:0.6;" : "")">
+                        <td style="padding:11px 16px; color:#6666aa; font-size:0.8rem;">@(idx++)</td>
+                        <td style="padding:11px 16px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:@(isToday ? "#22c55e" : isPast ? "#4a4a6a" : "#4361ee"); flex-shrink:0;"></div>
+                                <span style="color:#e0e0ff; font-weight:600;">@h.Name</span>
+                                @if (isToday) { <span style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:600;">TODAY</span> }
+                            </div>
+                        </td>
+                        <td style="padding:11px 16px; color:#818cf8; font-weight:600;">@h.Date.ToString("MMM dd, yyyy")</td>
+                        <td style="padding:11px 16px; color:#8888aa;">@h.Date.DayOfWeek</td>
+                        <td style="padding:11px 16px; color:#8888aa; max-width:200px;">@(string.IsNullOrEmpty(h.Description) ? "—" : h.Description)</td>
+                        <td style="padding:11px 16px;">
+                            <button @onclick="() => OpenEdit(h)"
+                                    style="padding:4px 10px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer; margin-right:5px;">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button @onclick="() => Delete(h.Id)"
+                                    style="padding:4px 10px; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer;">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+                @if (!FilteredHolidays().Any())
+                {
+                    <tr><td colspan="6" style="text-align:center; color:#4a4a6a; padding:32px;">
+                        <i class="bi bi-balloon" style="font-size:2rem; display:block; margin-bottom:8px; color:#2a2a4a;"></i>
+                        No holidays for @filterYear
+                    </td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add / Edit Modal -->
+@if (showModal)
 {
-    <div style="background:#1a1a2e; border-radius:10px; padding:24px; border:1px solid #2a2a4a; max-width:480px; margin-bottom:24px;">
-        <h6 style="color:#e0e0ff; margin-bottom:16px;">New Holiday</h6>
-        <div class="row g-3">
-            <div class="col-md-8">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Name</label>
-                <input @bind="newName" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; box-sizing:border-box;" />
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:2000;">
+        <div style="background:#1a1a2e; border-radius:14px; padding:32px; width:460px; border:1px solid #2a2a4a; box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h5 style="color:#e0e0ff; font-weight:700; margin:0;">@(isEdit ? "Edit Holiday" : "Add Holiday")</h5>
+                <button @onclick="() => showModal=false" style="background:none; border:none; color:#6666aa; font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">×</button>
             </div>
-            <div class="col-md-4">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Date</label>
-                <input type="date" @bind="newDate" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff;" />
+            <div style="margin-bottom:14px;">
+                <label style="@LblStyle">Holiday Name *</label>
+                <input @bind="form.Name" placeholder="e.g. Eid ul-Fitr" style="@FldStyle" />
             </div>
-            <div class="col-12">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Description</label>
-                <input @bind="newDesc" style="width:100%; padding:10px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; box-sizing:border-box;" />
+            <div style="margin-bottom:14px;">
+                <label style="@LblStyle">Date *</label>
+                <input type="date" @bind="form.Date" style="@FldStyle" />
+                @if (form.Date != default)
+                {
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:4px;">
+                        <i class="bi bi-calendar me-1"></i>@form.Date.ToString("dddd, MMMM dd, yyyy")
+                    </div>
+                }
             </div>
-        </div>
-        <div class="d-flex gap-3 mt-3">
-            <button @onclick="AddHoliday" style="padding:9px 20px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">Save</button>
-            <button @onclick="() => showAdd=false" style="padding:9px 20px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+            <div style="margin-bottom:14px;">
+                <label style="@LblStyle">Description</label>
+                <input @bind="form.Description" placeholder="Optional description" style="@FldStyle" />
+            </div>
+            @if (!string.IsNullOrEmpty(modalError))
+            {
+                <div style="color:#ef4444; font-size:0.83rem; margin-bottom:12px;"><i class="bi bi-exclamation-triangle me-2"></i>@modalError</div>
+            }
+            <div class="d-flex gap-3 mt-2">
+                <button @onclick="Save" style="flex:1; padding:12px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">
+                    <i class="bi bi-check-lg me-2"></i>@(isEdit ? "Update" : "Add Holiday")
+                </button>
+                <button @onclick="() => showModal=false" style="flex:1; padding:12px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+            </div>
         </div>
     </div>
 }
 
-<div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
-    <table class="table table-dark table-hover mb-0">
-        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
-            <th>Name</th><th>Date</th><th>Day</th><th>Description</th><th>Actions</th>
-        </tr></thead>
-        <tbody>
-            @foreach (var h in holidays)
-            {
-                <tr style="color:#c0c0e0;">
-                    <td style="font-weight:600; color:#e0e0ff;">@h.Name</td>
-                    <td>@h.Date.ToString("MMM dd, yyyy")</td>
-                    <td>@h.Date.DayOfWeek</td>
-                    <td style="color:#8888aa;">@h.Description</td>
-                    <td>
-                        <button @onclick="() => Delete(h.Id)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Delete</button>
-                    </td>
-                </tr>
-            }
-            @if (!holidays.Any())
-            {
-                <tr><td colspan="5" style="text-align:center; color:#4a4a6a; padding:24px;">No holidays added</td></tr>
-            }
-        </tbody>
-    </table>
-</div>
-
 @code {
     private List<Holiday> holidays = new();
-    private bool showAdd;
-    private string newName = "", newDesc = "";
-    private DateTime newDate = DateTime.Today;
+    private int filterYear = DateTime.Today.Year;
+    private bool showModal, isEdit;
+    private Holiday form = new();
+    private string modalError = "";
+
+    private string LblStyle => "color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:5px;";
+    private string FldStyle => "width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; box-sizing:border-box;";
 
     protected override void OnInitialized() => Reload();
     private void Reload() => holidays = Svc.GetHolidays();
 
-    private void AddHoliday()
+    private IEnumerable<Holiday> FilteredHolidays() =>
+        holidays.Where(h => h.Date.Year == filterYear).OrderBy(h => h.Date);
+
+    private void OpenAdd()
     {
-        if (string.IsNullOrWhiteSpace(newName)) return;
-        Svc.AddHoliday(new Holiday { Name=newName, Date=newDate, Description=newDesc });
-        newName=""; newDesc=""; showAdd=false; Reload();
+        form = new Holiday { Date = DateTime.Today }; isEdit = false; modalError = ""; showModal = true;
+    }
+    private void OpenEdit(Holiday h)
+    {
+        form = new Holiday { Id = h.Id, Name = h.Name, Date = h.Date, Description = h.Description };
+        isEdit = true; modalError = ""; showModal = true;
+    }
+
+    private void Save()
+    {
+        modalError = "";
+        if (string.IsNullOrWhiteSpace(form.Name)) { modalError = "Holiday name is required."; return; }
+        if (form.Date == default) { modalError = "Please select a date."; return; }
+        if (isEdit) Svc.UpdateHoliday(form);
+        else        Svc.AddHoliday(form);
+        showModal = false; Reload();
     }
 
     private void Delete(int id) { Svc.DeleteHoliday(id); Reload(); }

@@ -148,6 +148,69 @@ public class AttendanceService
         return true;
     }
 
+    // ── Attendance CRUD ────────────────────────────────────────────────
+    public void AddAttendance(Attendance att)
+    {
+        _db.Attendances.Add(att);
+        _db.SaveChanges();
+    }
+
+    public bool UpdateAttendance(Attendance updated)
+    {
+        var ex = _db.Attendances.Find(updated.Id);
+        if (ex == null) return false;
+        ex.EmployeeId      = updated.EmployeeId;
+        ex.Date            = updated.Date;
+        ex.CheckInTime     = updated.CheckInTime;
+        ex.CheckOutTime    = updated.CheckOutTime;
+        ex.WorkingHours    = updated.WorkingHours;
+        ex.OvertimeHours   = updated.OvertimeHours;
+        ex.ShortHours      = updated.ShortHours;
+        ex.RequiredHours   = updated.RequiredHours;
+        ex.IsLate          = updated.IsLate;
+        ex.LateMinutes     = updated.LateMinutes;
+        ex.IsEarlyExit     = updated.IsEarlyExit;
+        ex.EarlyExitMinutes= updated.EarlyExitMinutes;
+        ex.Status          = updated.Status;
+        ex.Notes           = updated.Notes;
+        _db.SaveChanges();
+        return true;
+    }
+
+    public bool DeleteAttendance(int id)
+    {
+        var a = _db.Attendances.Find(id);
+        if (a == null) return false;
+        _db.Attendances.Remove(a);
+        _db.SaveChanges();
+        return true;
+    }
+
+    // ── Holiday Update ─────────────────────────────────────────────────
+    public bool UpdateHoliday(Holiday updated)
+    {
+        var ex = _db.Holidays.Find(updated.Id);
+        if (ex == null) return false;
+        ex.Name        = updated.Name;
+        ex.Date        = updated.Date;
+        ex.Description = updated.Description;
+        _db.SaveChanges();
+        return true;
+    }
+
+    // ── Leave with Remarks ─────────────────────────────────────────────
+    public bool UpdateLeaveStatusWithRemarks(int id, LeaveStatus status, int adminId, string remarks)
+    {
+        var l = _db.Leaves.Find(id);
+        if (l == null) return false;
+        l.Status           = status;
+        l.ReviewedDate     = DateTime.Now;
+        l.ReviewedByAdminId= adminId;
+        l.AdminRemarks     = remarks ?? string.Empty;
+        _db.SaveChanges();
+        return true;
+    }
+
     // ── Stats ──────────────────────────────────────────────────────────
     public int PresentToday() =>
         _db.Attendances.Count(a => a.Date.Date == DateTime.Today &&
@@ -190,8 +253,8 @@ public class AttendanceService
         {
             var admin = _db.Admins.FirstOrDefault();
             if (admin == null) return false;
-            admin.FullName = name;
-            admin.Email    = email;
+            if (!string.IsNullOrEmpty(name))  admin.FullName = name;
+            if (!string.IsNullOrEmpty(email)) admin.Email    = email;
             if (!string.IsNullOrEmpty(newPassword))
                 admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             _db.SaveChanges();
@@ -201,9 +264,9 @@ public class AttendanceService
         {
             var emp = _db.Employees.Find(empId);
             if (emp == null) return false;
-            emp.FullName = name;
-            emp.Email    = email;
-            emp.Phone    = phone;
+            if (!string.IsNullOrEmpty(name))  emp.FullName = name;
+            if (!string.IsNullOrEmpty(email)) emp.Email    = email;
+            emp.Phone = phone;
             if (!string.IsNullOrEmpty(newPassword))
                 emp.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             _db.SaveChanges();

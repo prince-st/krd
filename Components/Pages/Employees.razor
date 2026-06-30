@@ -2,99 +2,224 @@
 @inject AuthService Auth
 @inject AttendanceService Svc
 @inject NavigationManager Nav
-
 @using KRD.AttendanceWeb.Models
 
-@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Employee Management</h4>
-    <button @onclick="() => OpenDialog(null)" style="padding:9px 18px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Employee Management</h4>
+        <p style="color:#6666aa; font-size:0.83rem; margin:4px 0 0;">@employees.Count total · @employees.Count(e => e.IsActive) active</p>
+    </div>
+    <button @onclick="() => OpenDialog(null)" style="padding:9px 18px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
         <i class="bi bi-plus-lg me-2"></i>Add Employee
     </button>
 </div>
 
-<!-- Search -->
-<div style="margin-bottom:16px;">
-    <input @bind="search" @bind:event="oninput" placeholder="Search employees..."
-           style="padding:10px 14px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; width:280px; font-size:0.9rem;" />
+<!-- Search + Filter bar -->
+<div style="background:#1a1a2e; border-radius:10px; padding:14px 18px; border:1px solid #2a2a4a; margin-bottom:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <input @bind="search" @bind:event="oninput" placeholder="🔍  Search by name, ID or email…"
+           style="padding:9px 14px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; min-width:240px;" />
+    <select @bind="filterDeptId" style="padding:9px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem;">
+        <option value="0">All Departments</option>
+        @foreach (var d in depts) { <option value="@d.Id">@d.Name</option> }
+    </select>
+    <select @bind="filterActive" style="padding:9px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem;">
+        <option value="all">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+    </select>
+    <span style="color:#6666aa; font-size:0.82rem; margin-left:auto;">@Filtered().Count() result(s)</span>
 </div>
 
+<!-- Table -->
 <div style="background:#1a1a2e; border-radius:10px; border:1px solid #2a2a4a; overflow:hidden;">
-    <table class="table table-dark table-hover mb-0">
-        <thead><tr style="color:#6666aa; font-size:0.8rem; text-transform:uppercase;">
-            <th>Employee ID</th><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Status</th><th>Actions</th>
-        </tr></thead>
-        <tbody>
-            @foreach (var emp in Filtered())
-            {
-                <tr style="color:#c0c0e0; vertical-align:middle;">
-                    <td style="color:#4361ee; font-weight:600;">@emp.EmployeeId</td>
-                    <td>@emp.FullName</td>
-                    <td style="color:#8888aa;">@emp.Email</td>
-                    <td>@(emp.Department?.Name ?? "-")</td>
-                    <td>@emp.Position</td>
-                    <td><StatusBadge Status="@(emp.IsActive ? "Active" : "Inactive")"/></td>
-                    <td>
-                        <button @onclick="() => OpenDialog(emp)" style="padding:4px 10px; background:#f59e0b22; color:#f59e0b; border:1px solid #f59e0b44; border-radius:6px; font-size:0.8rem; cursor:pointer; margin-right:6px;">Edit</button>
-                        <button @onclick="() => Deactivate(emp.Id)" style="padding:4px 10px; background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:6px; font-size:0.8rem; cursor:pointer;">Deactivate</button>
-                    </td>
+    <div style="overflow-x:auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size:0.85rem;">
+            <thead>
+                <tr style="color:#6666aa; font-size:0.75rem; text-transform:uppercase; background:#16213e;">
+                    <th style="padding:12px 16px;">ID</th>
+                    <th style="padding:12px 16px;">Name</th>
+                    <th style="padding:12px 16px;">Email</th>
+                    <th style="padding:12px 16px;">Department</th>
+                    <th style="padding:12px 16px;">Position</th>
+                    <th style="padding:12px 16px;">Join Date</th>
+                    <th style="padding:12px 16px;">Status</th>
+                    <th style="padding:12px 16px;">Actions</th>
                 </tr>
-            }
-            @if (!Filtered().Any())
-            {
-                <tr><td colspan="7" style="text-align:center; color:#4a4a6a; padding:24px;">No employees found</td></tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var emp in Filtered())
+                {
+                    <tr style="color:#c0c0e0; vertical-align:middle; border-bottom:1px solid #1e2040;">
+                        <td style="padding:11px 16px; color:#4361ee; font-weight:700; font-family:monospace;">@emp.EmployeeId</td>
+                        <td style="padding:11px 16px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#4361ee,#7209b7); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:white; flex-shrink:0;">
+                                    @Initials(emp.FullName)
+                                </div>
+                                <div>
+                                    <div style="color:#e0e0ff; font-weight:600;">@emp.FullName</div>
+                                    <div style="color:#6666aa; font-size:0.75rem;">@emp.Phone</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="padding:11px 16px; color:#8888aa;">@emp.Email</td>
+                        <td style="padding:11px 16px;">
+                            <span style="background:rgba(67,97,238,0.12); color:#818cf8; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">
+                                @(emp.Department?.Name ?? "—")
+                            </span>
+                        </td>
+                        <td style="padding:11px 16px; color:#c0c0e0;">@emp.Position</td>
+                        <td style="padding:11px 16px; color:#8888aa; font-size:0.82rem;">@emp.JoinDate.ToString("MMM dd, yyyy")</td>
+                        <td style="padding:11px 16px;"><StatusBadge Status="@(emp.IsActive ? "Active" : "Inactive")"/></td>
+                        <td style="padding:11px 16px;">
+                            <button @onclick="() => OpenDialog(emp)"
+                                    style="padding:5px 11px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer; margin-right:5px;">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button @onclick="() => ResetPassword(emp)"
+                                    style="padding:5px 11px; background:rgba(6,182,212,0.12); color:#06b6d4; border:1px solid rgba(6,182,212,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer; margin-right:5px;">
+                                <i class="bi bi-key"></i>
+                            </button>
+                            @if (emp.IsActive)
+                            {
+                                <button @onclick="() => ToggleActive(emp)"
+                                        style="padding:5px 11px; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer;">
+                                    <i class="bi bi-person-x"></i>
+                                </button>
+                            }
+                            else
+                            {
+                                <button @onclick="() => ToggleActive(emp)"
+                                        style="padding:5px 11px; background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer;">
+                                    <i class="bi bi-person-check"></i>
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Filtered().Any())
+                {
+                    <tr><td colspan="8" style="text-align:center; color:#4a4a6a; padding:32px;">
+                        <i class="bi bi-people" style="font-size:2rem; display:block; margin-bottom:8px; color:#2a2a4a;"></i>
+                        No employees found
+                    </td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<!-- Add/Edit Dialog -->
+<!-- Add / Edit Modal -->
 @if (showDialog)
 {
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;">
-        <div style="background:#1a1a2e; border-radius:12px; padding:32px; width:500px; max-height:90vh; overflow-y:auto; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-            <h5 style="color:#e0e0ff; margin-bottom:24px;">@(editEmp.Id == 0 ? "Add Employee" : "Edit Employee")</h5>
-
-            @foreach (var (lbl, val, setter) in Fields())
-            {
-                <div style="margin-bottom:14px;">
-                    <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">@lbl</label>
-                    <input value="@val" @oninput="e => setter(e.Value?.ToString() ?? string.Empty)"
-                           style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;" />
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:2000; padding:16px;">
+        <div style="background:#1a1a2e; border-radius:14px; padding:32px; width:540px; max-height:92vh; overflow-y:auto; border:1px solid #2a2a4a; box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <div>
+                    <h5 style="color:#e0e0ff; font-weight:700; margin:0;">@(editEmp.Id == 0 ? "Add New Employee" : "Edit Employee")</h5>
+                    @if (editEmp.Id != 0) { <div style="color:#6666aa; font-size:0.8rem; margin-top:2px;">ID: @editEmp.EmployeeId</div> }
                 </div>
-            }
-
-            <div style="margin-bottom:14px;">
-                <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Department</label>
-                <select @bind="editEmp.DepartmentId"
-                        style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem;">
-                    @foreach (var d in depts)
-                    {
-                        <option value="@d.Id">@d.Name</option>
-                    }
-                </select>
+                <button @onclick="() => showDialog=false" style="background:none; border:none; color:#6666aa; font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">×</button>
             </div>
 
-            @if (editEmp.Id == 0)
-            {
-                <div style="margin-bottom:14px;">
-                    <label style="color:#8888aa; font-size:0.8rem; display:block; margin-bottom:5px;">Password</label>
-                    <input @bind="newPassword" type="password"
-                           style="width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.9rem; box-sizing:border-box;" />
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label style="@LblStyle">Employee ID *</label>
+                    <input value="@editEmp.EmployeeId" @oninput="e => editEmp.EmployeeId = e.Value?.ToString() ?? string.Empty"
+                           placeholder="EMP001" style="@FldStyle" @ref="firstInput" />
                 </div>
-            }
+                <div class="col-md-6">
+                    <label style="@LblStyle">Full Name *</label>
+                    <input value="@editEmp.FullName" @oninput="e => editEmp.FullName = e.Value?.ToString() ?? string.Empty"
+                           placeholder="John Doe" style="@FldStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="@LblStyle">Email *</label>
+                    <input type="email" value="@editEmp.Email" @oninput="e => editEmp.Email = e.Value?.ToString() ?? string.Empty"
+                           placeholder="john@company.com" style="@FldStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="@LblStyle">Phone</label>
+                    <input value="@editEmp.Phone" @oninput="e => editEmp.Phone = e.Value?.ToString() ?? string.Empty"
+                           placeholder="0300-0000000" style="@FldStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="@LblStyle">Department *</label>
+                    <select @bind="editEmp.DepartmentId" style="@FldStyle">
+                        @foreach (var d in depts)
+                        { <option value="@d.Id">@d.Name</option> }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label style="@LblStyle">Position</label>
+                    <input value="@editEmp.Position" @oninput="e => editEmp.Position = e.Value?.ToString() ?? string.Empty"
+                           placeholder="Software Engineer" style="@FldStyle" />
+                </div>
+                <div class="col-md-6">
+                    <label style="@LblStyle">Join Date</label>
+                    <input type="date" @bind="editEmp.JoinDate" style="@FldStyle" />
+                </div>
+                @if (editEmp.Id == 0)
+                {
+                    <div class="col-md-6">
+                        <label style="@LblStyle">Password *</label>
+                        <input @bind="newPassword" type="password" placeholder="Min 6 characters" style="@FldStyle" />
+                    </div>
+                }
+                @if (editEmp.Id != 0)
+                {
+                    <div class="col-md-6">
+                        <label style="@LblStyle">Status</label>
+                        <select @bind="editActiveStr" style="@FldStyle">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                }
+            </div>
 
             @if (!string.IsNullOrEmpty(dlgError))
             {
-                <div style="color:#ef4444; font-size:0.82rem; margin-bottom:12px;">⚠ @dlgError</div>
+                <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px; margin-top:16px; color:#ef4444; font-size:0.85rem;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@dlgError
+                </div>
             }
 
             <div class="d-flex gap-3 mt-4">
-                <button @onclick="SaveEmployee" style="flex:1; padding:11px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">
-                    @(editEmp.Id == 0 ? "Add Employee" : "Save Changes")
+                <button @onclick="SaveEmployee" style="flex:1; padding:12px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">
+                    <i class="bi bi-check-lg me-2"></i>@(editEmp.Id == 0 ? "Add Employee" : "Save Changes")
                 </button>
-                <button @onclick="() => showDialog=false" style="flex:1; padding:11px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+                <button @onclick="() => showDialog=false" style="flex:1; padding:12px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Reset Password Modal -->
+@if (showResetPwd)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:2000;">
+        <div style="background:#1a1a2e; border-radius:14px; padding:32px; width:400px; border:1px solid #2a2a4a; box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+            <h5 style="color:#e0e0ff; font-weight:700; margin-bottom:6px;">Reset Password</h5>
+            <p style="color:#6666aa; font-size:0.85rem; margin-bottom:20px;">For: <strong style="color:#e0e0ff;">@resetEmpName</strong></p>
+            <label style="@LblStyle">New Password *</label>
+            <input @bind="resetPwd" type="password" placeholder="Min 6 characters" style="@FldStyle margin-bottom:12px;" />
+            <label style="@LblStyle">Confirm Password *</label>
+            <input @bind="resetPwdConfirm" type="password" placeholder="Repeat password" style="@FldStyle" />
+            @if (!string.IsNullOrEmpty(resetError))
+            {
+                <div style="color:#ef4444; font-size:0.82rem; margin-top:10px;"><i class="bi bi-exclamation-triangle me-2"></i>@resetError</div>
+            }
+            @if (resetSuccess)
+            {
+                <div style="color:#22c55e; font-size:0.85rem; margin-top:10px;"><i class="bi bi-check-circle me-2"></i>Password reset successfully!</div>
+            }
+            <div class="d-flex gap-3 mt-4">
+                <button @onclick="SaveResetPassword" style="flex:1; padding:11px; background:#4361ee; border:none; border-radius:8px; color:white; font-weight:700; cursor:pointer;">Reset</button>
+                <button @onclick="() => showResetPwd=false" style="flex:1; padding:11px; background:#2a2a4a; border:none; border-radius:8px; color:#8888aa; cursor:pointer;">Cancel</button>
             </div>
         </div>
     </div>
@@ -103,60 +228,117 @@
 @code {
     private List<Employee> employees = new();
     private List<Department> depts = new();
-    private string search = "";
+    private string search = "", filterActive = "all", filterStatus = "";
+    private int filterDeptId = 0;
     private bool showDialog;
     private Employee editEmp = new();
-    private string newPassword = "";
-    private string dlgError = "";
+    private string newPassword = "", dlgError = "", editActiveStr = "true";
+    private ElementReference firstInput;
+
+    // Reset password state
+    private bool showResetPwd, resetSuccess;
+    private string resetEmpName = "", resetPwd = "", resetPwdConfirm = "", resetError = "";
+    private int resetEmpId;
+
+    private string LblStyle => "color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:5px;";
+    private string FldStyle => "width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; box-sizing:border-box;";
 
     protected override void OnInitialized() { Reload(); depts = Svc.GetDepartments(); }
     private void Reload() => employees = Svc.GetAllEmployees(false);
-    private IEnumerable<Employee> Filtered() => employees.Where(e =>
-        string.IsNullOrEmpty(search) ||
-        e.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-        e.EmployeeId.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-        e.Email.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<Employee> Filtered()
+    {
+        var q = employees.AsEnumerable();
+        if (!string.IsNullOrEmpty(search))
+            q = q.Where(e => e.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                             e.EmployeeId.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                             e.Email.Contains(search, StringComparison.OrdinalIgnoreCase));
+        if (filterDeptId != 0) q = q.Where(e => e.DepartmentId == filterDeptId);
+        if (filterActive == "active")   q = q.Where(e => e.IsActive);
+        if (filterActive == "inactive") q = q.Where(e => !e.IsActive);
+        return q;
+    }
+
+    private string Initials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? "?" : parts.Length == 1 ? parts[0][0].ToString().ToUpper()
+            : $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
 
     private void OpenDialog(Employee? emp)
     {
-        editEmp = emp == null ? new Employee() : new Employee
+        if (emp == null)
         {
-            Id=emp.Id, EmployeeId=emp.EmployeeId, FullName=emp.FullName,
-            Email=emp.Email, Phone=emp.Phone, Position=emp.Position,
-            DepartmentId=emp.DepartmentId, JoinDate=emp.JoinDate, IsActive=emp.IsActive
-        };
-        if (depts.Any() && editEmp.DepartmentId == 0) editEmp.DepartmentId = depts[0].Id;
+            editEmp = new Employee { JoinDate = DateTime.Today };
+            if (depts.Any()) editEmp.DepartmentId = depts[0].Id;
+            editActiveStr = "true";
+        }
+        else
+        {
+            editEmp = new Employee
+            {
+                Id = emp.Id, EmployeeId = emp.EmployeeId, FullName = emp.FullName,
+                Email = emp.Email, Phone = emp.Phone, Position = emp.Position,
+                DepartmentId = emp.DepartmentId, JoinDate = emp.JoinDate, IsActive = emp.IsActive
+            };
+            editActiveStr = emp.IsActive ? "true" : "false";
+        }
         newPassword = ""; dlgError = ""; showDialog = true;
     }
 
     private void SaveEmployee()
     {
         dlgError = "";
-        if (string.IsNullOrWhiteSpace(editEmp.FullName) || string.IsNullOrWhiteSpace(editEmp.Email) || string.IsNullOrWhiteSpace(editEmp.EmployeeId))
-        { dlgError = "Employee ID, Name, and Email are required."; return; }
+        editEmp.IsActive = editActiveStr == "true";
+
+        if (string.IsNullOrWhiteSpace(editEmp.EmployeeId)) { dlgError = "Employee ID is required."; return; }
+        if (string.IsNullOrWhiteSpace(editEmp.FullName))   { dlgError = "Full Name is required."; return; }
+        if (string.IsNullOrWhiteSpace(editEmp.Email))      { dlgError = "Email is required."; return; }
+        if (editEmp.DepartmentId == 0)                      { dlgError = "Please select a department."; return; }
 
         if (editEmp.Id == 0)
         {
             if (string.IsNullOrWhiteSpace(newPassword)) { dlgError = "Password is required."; return; }
+            if (newPassword.Length < 6) { dlgError = "Password must be at least 6 characters."; return; }
             editEmp.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             editEmp.IsActive = true;
             if (!Svc.AddEmployee(editEmp)) { dlgError = "Employee ID or Email already exists."; return; }
         }
         else
         {
-            if (!Svc.UpdateEmployee(editEmp)) { dlgError = "Failed to update."; return; }
+            if (!Svc.UpdateEmployee(editEmp)) { dlgError = "Failed to update. Please try again."; return; }
         }
         showDialog = false; Reload();
     }
 
-    private void Deactivate(int id) { Svc.DeactivateEmployee(id); Reload(); }
-
-    private IEnumerable<(string, string, Action<string>)> Fields() => new (string, string, Action<string>)[]
+    private void ToggleActive(Employee emp)
     {
-        ("Employee ID", editEmp.EmployeeId, v => editEmp.EmployeeId = v),
-        ("Full Name",   editEmp.FullName,   v => editEmp.FullName   = v),
-        ("Email",       editEmp.Email,      v => editEmp.Email      = v),
-        ("Phone",       editEmp.Phone,      v => editEmp.Phone      = v),
-        ("Position",    editEmp.Position,   v => editEmp.Position   = v),
-    };
+        var copy = new Employee
+        {
+            Id = emp.Id, EmployeeId = emp.EmployeeId, FullName = emp.FullName,
+            Email = emp.Email, Phone = emp.Phone, Position = emp.Position,
+            DepartmentId = emp.DepartmentId, JoinDate = emp.JoinDate,
+            IsActive = !emp.IsActive
+        };
+        Svc.UpdateEmployee(copy);
+        Reload();
+    }
+
+    private void ResetPassword(Employee emp)
+    {
+        resetEmpId = emp.Id; resetEmpName = emp.FullName;
+        resetPwd = ""; resetPwdConfirm = ""; resetError = ""; resetSuccess = false;
+        showResetPwd = true;
+    }
+
+    private void SaveResetPassword()
+    {
+        resetError = "";
+        if (string.IsNullOrEmpty(resetPwd) || resetPwd.Length < 6) { resetError = "Password must be at least 6 characters."; return; }
+        if (resetPwd != resetPwdConfirm) { resetError = "Passwords do not match."; return; }
+        Svc.UpdateProfile(resetEmpId, false, "", "", "", resetPwd, "");
+        resetSuccess = true;
+        _ = Task.Delay(1500).ContinueWith(_ => { showResetPwd = false; resetSuccess = false; InvokeAsync(StateHasChanged); });
+    }
 }
