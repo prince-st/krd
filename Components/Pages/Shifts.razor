@@ -1,0 +1,342 @@
+@page "/shifts"
+@inject AuthService Auth
+@inject AttendanceService Svc
+@inject NavigationManager Nav
+@using KRD.AttendanceWeb.Models
+
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad: false); return; }
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Shift Management</h4>
+        <p style="color:#6666aa; font-size:0.83rem; margin:4px 0 0;">Set custom start / end times per employee · Company default applies if not set</p>
+    </div>
+</div>
+
+<!-- Company Default Banner -->
+<div style="background:linear-gradient(135deg,rgba(67,97,238,0.15),rgba(114,9,183,0.15)); border:1px solid rgba(67,97,238,0.3); border-radius:12px; padding:18px 24px; margin-bottom:20px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <i class="bi bi-building" style="color:#4361ee; font-size:1.4rem;"></i>
+        <div>
+            <div style="color:#8888aa; font-size:0.72rem; font-weight:600; text-transform:uppercase; margin-bottom:2px;">Company Default Shift</div>
+            <div style="color:#e0e0ff; font-weight:700; font-size:1rem;">@FormatTime(settings.OfficeStartTime) → @FormatTime(settings.OfficeEndTime)</div>
+        </div>
+    </div>
+    <div style="width:1px; height:36px; background:#2a2a4a;"></div>
+    <div>
+        <div style="color:#8888aa; font-size:0.72rem; font-weight:600; text-transform:uppercase; margin-bottom:2px;">Required Hours</div>
+        <div style="color:#818cf8; font-weight:700; font-size:1rem;">@settings.RequiredWorkingHours h / day</div>
+    </div>
+    <div style="width:1px; height:36px; background:#2a2a4a;"></div>
+    <div>
+        <div style="color:#8888aa; font-size:0.72rem; font-weight:600; text-transform:uppercase; margin-bottom:2px;">Grace Time</div>
+        <div style="color:#f59e0b; font-weight:700; font-size:1rem;">@settings.GraceTimeMinutes min</div>
+    </div>
+    <div style="margin-left:auto;">
+        <a href="/settings" style="padding:8px 16px; background:rgba(67,97,238,0.2); color:#818cf8; border:1px solid rgba(67,97,238,0.4); border-radius:8px; font-size:0.82rem; text-decoration:none; font-weight:600;">
+            <i class="bi bi-gear me-1"></i>Edit Default
+        </a>
+    </div>
+</div>
+
+<!-- Search -->
+<div style="margin-bottom:14px; display:flex; gap:10px; align-items:center;">
+    <input @bind="search" @bind:event="oninput" placeholder="🔍  Search employee..."
+           style="padding:9px 14px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; min-width:220px;" />
+    <select @bind="filterShift" style="padding:9px 12px; background:#1a1a2e; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem;">
+        <option value="">All Employees</option>
+        <option value="custom">Custom Shift</option>
+        <option value="default">Using Default</option>
+    </select>
+    <span style="color:#6666aa; font-size:0.82rem; margin-left:auto;">
+        @employees.Count(e => e.HasCustomShift) custom · @employees.Count(e => !e.HasCustomShift) using default
+    </span>
+</div>
+
+<!-- Employee Shift Table -->
+<div style="background:#1a1a2e; border-radius:12px; border:1px solid #2a2a4a; overflow:hidden;">
+    <div style="overflow-x:auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size:0.85rem;">
+            <thead>
+                <tr style="color:#6666aa; font-size:0.73rem; text-transform:uppercase; background:#16213e;">
+                    <th style="padding:13px 16px;">Employee</th>
+                    <th style="padding:13px 16px;">Department</th>
+                    <th style="padding:13px 16px; color:#22c55e;">Shift Start</th>
+                    <th style="padding:13px 16px; color:#ef4444;">Shift End</th>
+                    <th style="padding:13px 16px; color:#818cf8;">Req. Hours</th>
+                    <th style="padding:13px 16px;">Shift Name</th>
+                    <th style="padding:13px 16px;">Type</th>
+                    <th style="padding:13px 16px; text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in Filtered())
+                {
+                    var (s, e, h) = Svc.GetEffectiveShift(emp);
+                    bool isCustom = emp.HasCustomShift;
+                    <tr style="color:#c0c0e0; vertical-align:middle; border-bottom:1px solid #1e2040;">
+                        <td style="padding:12px 16px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:36px; height:36px; border-radius:50%; background:@(isCustom ? "linear-gradient(135deg,#7209b7,#4361ee)" : "linear-gradient(135deg,#2a2a4a,#1a1a2e)"); display:flex; align-items:center; justify-content:center; font-size:0.78rem; font-weight:700; color:@(isCustom ? "white" : "#6666aa"); border:1px solid @(isCustom ? "#7209b7" : "#2a2a4a"); flex-shrink:0;">
+                                    @Initials(emp.FullName)
+                                </div>
+                                <div>
+                                    <div style="color:#e0e0ff; font-weight:600; font-size:0.88rem;">@emp.FullName</div>
+                                    <div style="color:#6666aa; font-size:0.73rem;">@emp.EmployeeId</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="padding:12px 16px;">
+                            <span style="background:rgba(67,97,238,0.1); color:#818cf8; padding:3px 10px; border-radius:20px; font-size:0.73rem; font-weight:600;">
+                                @(emp.Department?.Name ?? "—")
+                            </span>
+                        </td>
+                        <td style="padding:12px 16px; font-weight:700; color:#22c55e; font-size:0.95rem;">@FormatTime(s)</td>
+                        <td style="padding:12px 16px; font-weight:700; color:#ef4444; font-size:0.95rem;">@FormatTime(e)</td>
+                        <td style="padding:12px 16px; font-weight:700; color:#818cf8;">@h h</td>
+                        <td style="padding:12px 16px; color:#8888aa; font-size:0.82rem;">
+                            @(string.IsNullOrEmpty(emp.ShiftName) ? "—" : emp.ShiftName)
+                        </td>
+                        <td style="padding:12px 16px;">
+                            @if (isCustom)
+                            {
+                                <span style="background:rgba(114,9,183,0.15); color:#c084fc; padding:3px 10px; border-radius:20px; font-size:0.73rem; font-weight:600; border:1px solid rgba(114,9,183,0.3);">
+                                    <i class="bi bi-person-gear me-1"></i>Custom
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="background:rgba(99,102,241,0.1); color:#6666aa; padding:3px 10px; border-radius:20px; font-size:0.73rem; font-weight:600;">
+                                    <i class="bi bi-building me-1"></i>Default
+                                </span>
+                            }
+                        </td>
+                        <td style="padding:12px 16px; text-align:center;">
+                            <button @onclick="() => OpenEdit(emp)"
+                                    style="padding:5px 12px; background:rgba(67,97,238,0.15); color:#818cf8; border:1px solid rgba(67,97,238,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer; margin-right:5px;">
+                                <i class="bi bi-pencil me-1"></i>Set Shift
+                            </button>
+                            @if (isCustom)
+                            {
+                                <button @onclick="() => ClearShift(emp)"
+                                        style="padding:5px 10px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; font-size:0.78rem; cursor:pointer;">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Filtered().Any())
+                {
+                    <tr><td colspan="8" style="text-align:center; color:#4a4a6a; padding:32px;">No employees found</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Shift Modal -->
+@if (showModal && editEmp != null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:2000;">
+        <div style="background:#1a1a2e; border-radius:16px; padding:36px; width:500px; border:1px solid #2a2a4a; box-shadow:0 32px 80px rgba(0,0,0,0.7);">
+
+            <!-- Title -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <h5 style="color:#e0e0ff; font-weight:700; margin:0;">Set Employee Shift</h5>
+                    <p style="color:#6666aa; font-size:0.82rem; margin:4px 0 0;">@editEmp.FullName · @editEmp.EmployeeId</p>
+                </div>
+                <button @onclick="() => showModal=false" style="background:none; border:none; color:#6666aa; font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">×</button>
+            </div>
+
+            <!-- Use default toggle -->
+            <div style="background:#0f0f1a; border-radius:10px; padding:14px 18px; margin:18px 0; display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <div style="color:#e0e0ff; font-size:0.88rem; font-weight:600;">Use Company Default</div>
+                    <div style="color:#6666aa; font-size:0.75rem; margin-top:2px;">
+                        @FormatTime(settings.OfficeStartTime) → @FormatTime(settings.OfficeEndTime) · @settings.RequiredWorkingHours h
+                    </div>
+                </div>
+                <button type="button" @onclick="() => useDefault = !useDefault"
+                        style="width:48px; height:26px; border-radius:13px; border:none; cursor:pointer; transition:all 0.2s; position:relative;
+                               background:@(useDefault ? "#4361ee" : "#2a2a4a");">
+                    <div style="position:absolute; top:3px; width:20px; height:20px; border-radius:50%; background:white; transition:left 0.2s; left:@(useDefault ? "25px" : "3px");"></div>
+                </button>
+            </div>
+
+            @if (!useDefault)
+            {
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label style="@LblStyle">Shift Name <span style="color:#4a4a6a; font-weight:400;">(optional, e.g. Morning / Night)</span></label>
+                        <input @bind="shiftName" placeholder="e.g. Morning Shift" style="@FldStyle" />
+                    </div>
+                    <div class="col-6">
+                        <label style="@LblStyle">Shift Start Time *</label>
+                        <input type="time" value="@startStr" @onchange="e => { startStr = e.Value?.ToString() ?? string.Empty; RecalcHours(); }"
+                               style="@FldStyle" />
+                        <div style="color:#22c55e; font-size:0.73rem; margin-top:4px; font-weight:600;">
+                            @(string.IsNullOrEmpty(startStr) ? "" : $"→ {FormatTimeStr(startStr)}")
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label style="@LblStyle">Shift End Time *</label>
+                        <input type="time" value="@endStr" @onchange="e => { endStr = e.Value?.ToString() ?? string.Empty; RecalcHours(); }"
+                               style="@FldStyle" />
+                        <div style="color:#ef4444; font-size:0.73rem; margin-top:4px; font-weight:600;">
+                            @(string.IsNullOrEmpty(endStr) ? "" : $"→ {FormatTimeStr(endStr)}")
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label style="@LblStyle">Required Hours / Day *</label>
+                        <input @bind="reqHours" type="number" min="1" max="24" step="0.5" style="@FldStyle" />
+                    </div>
+                    <div class="col-6">
+                        <label style="@LblStyle">Calculated Duration</label>
+                        <div style="@FldStyle display:flex; align-items:center; gap:6px; background:#0f0f1a;">
+                            <i class="bi bi-hourglass-split" style="color:#818cf8;"></i>
+                            <span style="color:#818cf8; font-weight:700;">@calcDuration</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual timeline -->
+                @if (!string.IsNullOrEmpty(startStr) && !string.IsNullOrEmpty(endStr))
+                {
+                    <div style="margin-top:16px; background:#0f0f1a; border-radius:8px; padding:14px;">
+                        <div style="color:#6666aa; font-size:0.72rem; font-weight:600; margin-bottom:8px; text-transform:uppercase;">Shift Timeline</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="color:#22c55e; font-weight:700; font-size:0.9rem; min-width:60px;">@FormatTimeStr(startStr)</span>
+                            <div style="flex:1; height:8px; background:linear-gradient(90deg,#22c55e,#4361ee,#ef4444); border-radius:4px;"></div>
+                            <span style="color:#ef4444; font-weight:700; font-size:0.9rem; min-width:60px; text-align:right;">@FormatTimeStr(endStr)</span>
+                        </div>
+                        <div style="display:flex; justify-content:center; margin-top:6px;">
+                            <span style="color:#818cf8; font-size:0.78rem; font-weight:600; background:rgba(129,140,248,0.1); padding:3px 12px; border-radius:10px;">
+                                @calcDuration shift · @reqHours h required
+                            </span>
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (!string.IsNullOrEmpty(modalError))
+            {
+                <div style="color:#ef4444; font-size:0.82rem; margin-top:12px; padding:8px 12px; background:rgba(239,68,68,0.1); border-radius:6px;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@modalError
+                </div>
+            }
+
+            <div class="d-flex gap-3 mt-4">
+                <button @onclick="SaveShift" style="flex:1; padding:13px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:10px; color:white; font-weight:700; cursor:pointer; font-size:0.95rem;">
+                    <i class="bi bi-check-lg me-2"></i>@(useDefault ? "Apply Default Shift" : "Save Custom Shift")
+                </button>
+                <button @onclick="() => showModal=false" style="flex:1; padding:13px; background:#2a2a4a; border:none; border-radius:10px; color:#8888aa; cursor:pointer;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Employee> employees = new();
+    private CompanySettings settings = new();
+    private string search = "", filterShift = "";
+    private bool showModal, useDefault;
+    private Employee? editEmp;
+    private string startStr = "", endStr = "", shiftName = "", modalError = "", calcDuration = "";
+    private double reqHours = 8;
+
+    private string LblStyle => "color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:5px;";
+    private string FldStyle => "width:100%; padding:10px 12px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; box-sizing:border-box;";
+
+    protected override void OnInitialized()
+    {
+        settings  = Svc.GetSettings();
+        employees = Svc.GetAllEmployees(false);
+    }
+
+    private IEnumerable<Employee> Filtered()
+    {
+        var q = employees.AsEnumerable();
+        if (!string.IsNullOrEmpty(search))
+            q = q.Where(e => e.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                             e.EmployeeId.Contains(search, StringComparison.OrdinalIgnoreCase));
+        if (filterShift == "custom")  q = q.Where(e => e.HasCustomShift);
+        if (filterShift == "default") q = q.Where(e => !e.HasCustomShift);
+        return q;
+    }
+
+    private void OpenEdit(Employee emp)
+    {
+        editEmp     = emp;
+        useDefault  = !emp.HasCustomShift;
+        shiftName   = emp.ShiftName ?? "";
+        startStr    = emp.ShiftStart?.ToString(@"hh\:mm") ?? settings.OfficeStartTime.ToString(@"hh\:mm");
+        endStr      = emp.ShiftEnd?.ToString(@"hh\:mm")   ?? settings.OfficeEndTime.ToString(@"hh\:mm");
+        reqHours    = emp.ShiftRequiredHours ?? settings.RequiredWorkingHours;
+        modalError  = "";
+        RecalcHours();
+        showModal   = true;
+    }
+
+    private void ClearShift(Employee emp)
+    {
+        emp.ShiftStartTicks    = null;
+        emp.ShiftEndTicks      = null;
+        emp.ShiftRequiredHours = null;
+        emp.ShiftName          = string.Empty;
+        Svc.UpdateEmployee(emp);
+        employees = Svc.GetAllEmployees(false);
+    }
+
+    private void RecalcHours()
+    {
+        if (TimeSpan.TryParse(startStr, out var s) && TimeSpan.TryParse(endStr, out var e))
+        {
+            var diff = e > s ? e - s : e.Add(TimeSpan.FromHours(24)) - s; // handle overnight
+            calcDuration = $"{(int)diff.TotalHours}h {diff.Minutes:D2}m";
+        }
+        else calcDuration = "—";
+    }
+
+    private void SaveShift()
+    {
+        modalError = "";
+        if (editEmp == null) return;
+
+        if (useDefault)
+        {
+            editEmp.ShiftStartTicks    = null;
+            editEmp.ShiftEndTicks      = null;
+            editEmp.ShiftRequiredHours = null;
+            editEmp.ShiftName          = string.Empty;
+        }
+        else
+        {
+            if (!TimeSpan.TryParse(startStr, out var s)) { modalError = "Invalid start time."; return; }
+            if (!TimeSpan.TryParse(endStr,   out var e)) { modalError = "Invalid end time."; return; }
+            if (reqHours <= 0 || reqHours > 24)          { modalError = "Required hours must be between 1 and 24."; return; }
+
+            editEmp.ShiftStart         = s;
+            editEmp.ShiftEnd           = e;
+            editEmp.ShiftRequiredHours = reqHours;
+            editEmp.ShiftName          = shiftName.Trim();
+        }
+
+        Svc.UpdateEmployee(editEmp);
+        employees  = Svc.GetAllEmployees(false);
+        showModal  = false;
+    }
+
+    private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+    private string FormatTimeStr(string s) => TimeSpan.TryParse(s, out var t) ? FormatTime(t) : s;
+    private string Initials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? "?" : parts.Length == 1 ? parts[0][0].ToString().ToUpper()
+            : $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+}

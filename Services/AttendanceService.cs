@@ -36,9 +36,17 @@ public class AttendanceService
     {
         var ex = _db.Employees.Find(emp.Id);
         if (ex == null) return false;
-        ex.FullName = emp.FullName; ex.Email = emp.Email; ex.Phone = emp.Phone;
-        ex.DepartmentId = emp.DepartmentId; ex.Position = emp.Position;
-        ex.JoinDate = emp.JoinDate; ex.IsActive = emp.IsActive;
+        ex.FullName           = emp.FullName;
+        ex.Email              = emp.Email;
+        ex.Phone              = emp.Phone;
+        ex.DepartmentId       = emp.DepartmentId;
+        ex.Position           = emp.Position;
+        ex.JoinDate           = emp.JoinDate;
+        ex.IsActive           = emp.IsActive;
+        ex.ShiftStartTicks    = emp.ShiftStartTicks;
+        ex.ShiftEndTicks      = emp.ShiftEndTicks;
+        ex.ShiftRequiredHours = emp.ShiftRequiredHours;
+        ex.ShiftName          = emp.ShiftName;
         _db.SaveChanges();
         return true;
     }
@@ -57,23 +65,48 @@ public class AttendanceService
         _db.Attendances.FirstOrDefault(a =>
             a.EmployeeId == employeeId && a.Date.Date == DateTime.Today);
 
+    public (TimeSpan start, TimeSpan end, double requiredHours) GetEffectiveShift(Employee emp)
+    {
+        var settings = GetSettings();
+        if (emp.HasCustomShift)
+            return (emp.ShiftStart!.Value, emp.ShiftEnd!.Value, emp.ShiftRequiredHours ?? settings.RequiredWorkingHours);
+        return (settings.OfficeStartTime, settings.OfficeEndTime, settings.RequiredWorkingHours);
+    }
+
+    // ── Shift resolver ─────────────────────────────────────────────────
+    private (TimeSpan start, TimeSpan end, double requiredHours, int graceMinutes) GetShift(int employeeId)
+    {
+        var settings = GetSettings();
+        var emp = _db.Employees.Find(employeeId);
+        if (emp != null && emp.HasCustomShift)
+        {
+            return (
+                emp.ShiftStart!.Value,
+                emp.ShiftEnd!.Value,
+                emp.ShiftRequiredHours ?? settings.RequiredWorkingHours,
+                settings.GraceTimeMinutes
+            );
+        }
+        return (settings.OfficeStartTime, settings.OfficeEndTime, settings.RequiredWorkingHours, settings.GraceTimeMinutes);
+    }
+
     public bool CheckIn(int employeeId)
     {
         if (_db.Attendances.Any(a => a.EmployeeId == employeeId && a.Date.Date == DateTime.Today))
             return false;
-        var settings = GetSettings();
-        var now = DateTime.Now;
-        var grace = settings.OfficeStartTime.Add(TimeSpan.FromMinutes(settings.GraceTimeMinutes));
+        var (start, _, requiredHours, graceMinutes) = GetShift(employeeId);
+        var now   = DateTime.Now;
+        var grace = start.Add(TimeSpan.FromMinutes(graceMinutes));
         bool isLate = now.TimeOfDay > grace;
         _db.Attendances.Add(new Attendance
         {
-            EmployeeId  = employeeId,
-            Date        = DateTime.Today,
-            CheckInTime = now,
-            Status      = isLate ? AttendanceStatus.Late : AttendanceStatus.Present,
-            IsLate      = isLate,
-            LateMinutes = isLate ? (int)(now.TimeOfDay - settings.OfficeStartTime).TotalMinutes : 0,
-            RequiredHours = settings.RequiredWorkingHours
+            EmployeeId    = employeeId,
+            Date          = DateTime.Today,
+            CheckInTime   = now,
+            Status        = isLate ? AttendanceStatus.Late : AttendanceStatus.Present,
+            IsLate        = isLate,
+            LateMinutes   = isLate ? (int)(now.TimeOfDay - start).TotalMinutes : 0,
+            RequiredHours = requiredHours
         });
         _db.SaveChanges();
         return true;
@@ -83,16 +116,17 @@ public class AttendanceService
     {
         var att = GetTodayAttendance(employeeId);
         if (att == null || att.CheckInTime == null || att.CheckOutTime != null) return false;
-        var settings = GetSettings();
-        var now = DateTime.Now;
+        var (_, end, requiredHours, _) = GetShift(employeeId);
+        var now  = DateTime.Now;
         double hrs = (now - att.CheckInTime.Value).TotalHours;
-        bool earlyExit = now.TimeOfDay < settings.OfficeEndTime;
-        att.CheckOutTime    = now;
-        att.WorkingHours    = hrs;
-        att.OvertimeHours   = Math.Max(0, hrs - settings.RequiredWorkingHours);
-        att.ShortHours      = Math.Max(0, settings.RequiredWorkingHours - hrs);
-        att.IsEarlyExit     = earlyExit;
-        att.EarlyExitMinutes= earlyExit ? (int)(settings.OfficeEndTime - now.TimeOfDay).TotalMinutes : 0;
+        bool earlyExit = now.TimeOfDay < end;
+        att.CheckOutTime     = now;
+        att.WorkingHours     = hrs;
+        att.RequiredHours    = requiredHours;
+        att.OvertimeHours    = Math.Max(0, hrs - requiredHours);
+        att.ShortHours       = Math.Max(0, requiredHours - hrs);
+        att.IsEarlyExit      = earlyExit;
+        att.EarlyExitMinutes = earlyExit ? (int)(end - now.TimeOfDay).TotalMinutes : 0;
         att.Status = earlyExit ? AttendanceStatus.EarlyExit :
                      att.IsLate ? AttendanceStatus.Late : AttendanceStatus.Present;
         _db.SaveChanges();

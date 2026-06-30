@@ -36,6 +36,30 @@ public class Employee
 
     public bool IsActive { get; set; } = true;
 
+    // ── Custom Shift (null = use company default) ──────────────────────
+    /// <summary>Stored as ticks; null means "use company default"</summary>
+    public long? ShiftStartTicks { get; set; }
+    public long? ShiftEndTicks   { get; set; }
+    public double? ShiftRequiredHours { get; set; }
+
+    [MaxLength(100)]
+    public string ShiftName { get; set; } = string.Empty;  // e.g. "Morning", "Night"
+
+    [NotMapped]
+    public TimeSpan? ShiftStart
+    {
+        get => ShiftStartTicks.HasValue ? TimeSpan.FromTicks(ShiftStartTicks.Value) : null;
+        set => ShiftStartTicks = value?.Ticks;
+    }
+    [NotMapped]
+    public TimeSpan? ShiftEnd
+    {
+        get => ShiftEndTicks.HasValue ? TimeSpan.FromTicks(ShiftEndTicks.Value) : null;
+        set => ShiftEndTicks = value?.Ticks;
+    }
+
+    public bool HasCustomShift => ShiftStartTicks.HasValue && ShiftEndTicks.HasValue;
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     public DateTime? LastLogin { get; set; }

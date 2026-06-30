@@ -219,6 +219,12 @@
     {
         if (!Auth.IsEmployeeLoggedIn) return;
         settings = Svc.GetSettings();
+        var emp = Auth.CurrentEmployee!;
+        // Override with employee's custom shift if set
+        var (s, e, h) = Svc.GetEffectiveShift(emp);
+        settings.OfficeStartTime = s;
+        settings.OfficeEndTime   = e;
+        settings.RequiredWorkingHours = h;
         Refresh();
         var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
         weekAtt = Svc.GetAttendanceByEmployee(Auth.CurrentEmployee!.Id, weekStart, weekStart.AddDays(6));
