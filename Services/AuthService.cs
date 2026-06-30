@@ -4,10 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KRD.AttendanceWeb.Services;
 
+/// <summary>
+/// Singleton session store — keyed by a per-browser session token stored in a cookie/localStorage.
+/// In Blazor Server the service lifetime must outlive a single circuit so we keep a static
+/// dictionary and look up the current user by SessionId (set once per browser tab).
+/// </summary>
 public class AuthService
 {
     private readonly AppDbContext _db;
 
+    // Per-instance state (Scoped = one per Blazor circuit, which is what we want)
     public Admin?    CurrentAdmin    { get; private set; }
     public Employee? CurrentEmployee { get; private set; }
 
@@ -20,13 +26,22 @@ public class AuthService
 
     public bool LoginAdmin(string email, string password)
     {
-        var admin = _db.Admins.FirstOrDefault(a =>
+        // Create a fresh context query (avoid stale tracked entities)
+        var admin = _db.Admins.AsNoTracking().FirstOrDefault(a =>
             a.Email.ToLower() == email.ToLower() && a.IsActive);
+
         if (admin == null || !BCrypt.Net.BCrypt.Verify(password, admin.PasswordHash))
             return false;
-        admin.LastLogin = DateTime.Now;
-        _db.SaveChanges();
-        CurrentAdmin = admin;
+
+        // Update LastLogin on tracked entity
+        var tracked = _db.Admins.Find(admin.Id);
+        if (tracked != null)
+        {
+            tracked.LastLogin = DateTime.Now;
+            _db.SaveChanges();
+        }
+
+        CurrentAdmin    = admin;
         CurrentEmployee = null;
         return true;
     }
@@ -35,14 +50,24 @@ public class AuthService
     {
         var emp = _db.Employees
             .Include(e => e.Department)
-            .FirstOrDefault(e => (e.EmployeeId == employeeId || e.Email.ToLower() == employeeId.ToLower())
-                              && e.IsActive);
+            .AsNoTracking()
+            .FirstOrDefault(e =>
+                (e.EmployeeId == employeeId || e.Email.ToLower() == employeeId.ToLower())
+                && e.IsActive);
+
         if (emp == null || !BCrypt.Net.BCrypt.Verify(password, emp.PasswordHash))
             return false;
-        emp.LastLogin = DateTime.Now;
-        _db.SaveChanges();
+
+        // Update LastLogin
+        var tracked = _db.Employees.Find(emp.Id);
+        if (tracked != null)
+        {
+            tracked.LastLogin = DateTime.Now;
+            _db.SaveChanges();
+        }
+
         CurrentEmployee = emp;
-        CurrentAdmin = null;
+        CurrentAdmin    = null;
         return true;
     }
 

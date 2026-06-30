@@ -5,7 +5,7 @@
 @rendermode InteractiveServer
 @using AttRec = KRD.AttendanceWeb.Models.Attendance
 
-@if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+@if (!Auth.IsEmployeeLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
 
 <h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">Check In / Check Out</h4>
 

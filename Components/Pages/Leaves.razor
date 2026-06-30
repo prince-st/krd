@@ -6,7 +6,7 @@
 @rendermode InteractiveServer
 @using KRD.AttendanceWeb.Models
 
-@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+@if (!Auth.IsLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
 
 <h4 style="color:#e0e0ff; font-weight:700; margin-bottom:24px;">
     @(Auth.IsAdminLoggedIn ? "Leave Requests" : "Apply for Leave")

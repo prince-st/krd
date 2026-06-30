@@ -5,7 +5,7 @@
 @rendermode InteractiveServer
 @using KRD.AttendanceWeb.Models
 
-@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:true); return; }
+@if (!Auth.IsAdminLoggedIn) { Nav.NavigateTo("/login", forceLoad:false); return; }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 style="color:#e0e0ff; font-weight:700; margin:0;">Holiday Management</h4>

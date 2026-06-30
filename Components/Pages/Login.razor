@@ -1,5 +1,4 @@
 @page "/login"
-@page "/"
 @layout KRD.AttendanceWeb.Components.Layout.EmptyLayout
 @inject AuthService Auth
 @inject NavigationManager Nav
@@ -87,7 +86,7 @@
     protected override void OnInitialized()
     {
         if (Auth.IsLoggedIn)
-            Nav.NavigateTo("/dashboard", forceLoad: true);
+            Nav.NavigateTo("/dashboard", forceLoad: false);
     }
 
     private async Task HandleKey(KeyboardEventArgs e)
@@ -110,7 +109,7 @@
 
         loading = false;
         if (ok)
-            Nav.NavigateTo("/dashboard", forceLoad: true);
+            Nav.NavigateTo("/dashboard", forceLoad: false);
         else
             error = isAdmin ? "Invalid email or password." : "Invalid Employee ID or password.";
     }

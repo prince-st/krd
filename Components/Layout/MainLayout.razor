@@ -69,7 +69,7 @@ else
     private void Logout()
     {
         Auth.Logout();
-        Nav.NavigateTo("/login", forceLoad: true);
+        Nav.NavigateTo("/login", forceLoad: false);
     }
 
     private string GetInitials(string name)
