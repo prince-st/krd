@@ -1,116 +1,216 @@
 @page "/login"
 @layout KRD.AttendanceWeb.Components.Layout.EmptyLayout
 @inject AuthService Auth
+@inject AttendanceService Svc
 @inject NavigationManager Nav
-
+@using KRD.AttendanceWeb.Models
 
 <div style="min-height:100vh; display:flex; background:#0f0f1a;">
-    <!-- Left panel -->
-    <div style="width:420px; background:linear-gradient(160deg,#4361ee,#7209b7); display:flex; flex-direction:column; justify-content:center; align-items:center; padding:40px; flex-shrink:0;">
-        <div style="width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;color:white;border:2px solid rgba(255,255,255,0.3);margin-bottom:24px;">KRD</div>
+
+    <!-- Left branding panel -->
+    <div style="width:380px; background:linear-gradient(160deg,#4361ee,#7209b7); display:flex; flex-direction:column; justify-content:center; align-items:center; padding:40px; flex-shrink:0;">
+        <div style="width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:900;color:white;border:2px solid rgba(255,255,255,0.3);margin-bottom:24px;">KRD</div>
         <h2 style="color:white;font-weight:800;font-size:1.7rem;margin-bottom:8px;text-align:center;">KRD Attendance</h2>
-        <p style="color:rgba(255,255,255,0.7);text-align:center;font-size:0.95rem;margin-bottom:40px;">Employee Attendance Management System</p>
+        <p style="color:rgba(255,255,255,0.7);text-align:center;font-size:0.9rem;margin-bottom:40px;">Employee Attendance Management System</p>
         <div style="width:100%;">
-            @foreach (var f in new[] { "Real-time Attendance Tracking", "Leave Management", "Detailed Reports", "Holiday Management" })
+            @foreach (var f in new[] { "Real-time Attendance Tracking", "Leave Management", "Detailed Reports", "Shift Management" })
             {
-                <div style="display:flex;align-items:center;margin-bottom:14px;color:rgba(255,255,255,0.85);font-size:0.9rem;">
-                    <i class="bi bi-check-circle-fill me-3" style="color:#4cc9f0;font-size:1rem;"></i>@f
+                <div style="display:flex;align-items:center;margin-bottom:14px;color:rgba(255,255,255,0.85);font-size:0.88rem;">
+                    <i class="bi bi-check-circle-fill me-3" style="color:#4cc9f0;"></i>@f
                 </div>
             }
         </div>
-        <div style="margin-top:auto;color:rgba(255,255,255,0.4);font-size:0.75rem;">v1.0 © 2024 KRD</div>
+        <div style="margin-top:auto;color:rgba(255,255,255,0.35);font-size:0.72rem;">v2.0 © 2025 KRD</div>
     </div>
 
-    <!-- Right panel -->
-    <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:40px;">
-        <div style="width:100%;max-width:420px; background:#1a1a2e; border-radius:12px; padding:40px; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-            <div style="height:4px; background:linear-gradient(90deg,#4361ee,#7209b7); border-radius:4px 4px 0 0; margin:-40px -40px 32px -40px;"></div>
+    <!-- Right login panel -->
+    <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto;">
+        <div style="width:100%; max-width:480px;">
 
-            <h3 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">Welcome Back</h3>
-            <p style="color:#6666aa; font-size:0.88rem; margin-bottom:28px;">Sign in to continue to KRD Attendance</p>
-
-            <!-- Toggle -->
-            <div style="display:flex; background:#0f0f1a; border-radius:8px; padding:4px; margin-bottom:24px;">
-                <button style="flex:1; padding:10px; border:none; border-radius:6px; font-weight:600; font-size:0.88rem; cursor:pointer;
-                    background:@(isAdmin ? "#4361ee" : "transparent"); color:@(isAdmin ? "white" : "#6666aa");"
-                    @onclick="() => { isAdmin=true; error=null; }">Admin</button>
-                <button style="flex:1; padding:10px; border:none; border-radius:6px; font-weight:600; font-size:0.88rem; cursor:pointer;
-                    background:@(!isAdmin ? "#4361ee" : "transparent"); color:@(!isAdmin ? "white" : "#6666aa");"
-                    @onclick="() => { isAdmin=false; error=null; }">Employee</button>
+            <!-- Tab toggle -->
+            <div style="display:flex; background:#1a1a2e; border-radius:12px; padding:5px; margin-bottom:28px; border:1px solid #2a2a4a;">
+                <button @onclick="() => { tab=\"emp\"; error=null; }"
+                        style="flex:1; padding:12px; border:none; border-radius:9px; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s;
+                               background:@(tab=="emp" ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
+                               color:@(tab=="emp" ? "white" : "#6666aa");">
+                    <i class="bi bi-people me-2"></i>Employee
+                </button>
+                <button @onclick="() => { tab=\"admin\"; error=null; }"
+                        style="flex:1; padding:12px; border:none; border-radius:9px; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s;
+                               background:@(tab=="admin" ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
+                               color:@(tab=="admin" ? "white" : "#6666aa");">
+                    <i class="bi bi-shield-lock me-2"></i>Admin
+                </button>
             </div>
 
-            <!-- Fields -->
-            <div style="margin-bottom:16px;">
-                <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">
-                    @(isAdmin ? "Email Address" : "Employee ID")
-                </label>
-                <input @bind="identifier" @bind:event="oninput"
-                       placeholder="@(isAdmin ? "admin@krd.com" : "Enter your employee ID")"
-                       style="width:100%; padding:12px 14px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.95rem; outline:none; box-sizing:border-box;"
-                       @onkeydown="HandleKey" />
-            </div>
-            <div style="margin-bottom:10px;">
-                <label style="color:#8888aa; font-size:0.8rem; font-weight:600; display:block; margin-bottom:6px;">Password</label>
-                <input @bind="password" @bind:event="oninput" type="password"
-                       placeholder="Enter your password"
-                       style="width:100%; padding:12px 14px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.95rem; outline:none; box-sizing:border-box;"
-                       @onkeydown="HandleKey" />
-            </div>
-
-            @if (!string.IsNullOrEmpty(error))
+            <!-- ══ EMPLOYEE TAB — just pick name, no password ══ -->
+            @if (tab == "emp")
             {
-                <div style="color:#ef4444; font-size:0.82rem; margin-bottom:12px; padding:8px 12px; background:rgba(239,68,68,0.1); border-radius:6px;">
-                    <i class="bi bi-exclamation-triangle me-2"></i>@error
+                <div style="background:#1a1a2e; border-radius:14px; padding:32px; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+                    <div style="height:4px; background:linear-gradient(90deg,#4361ee,#7209b7); border-radius:4px 4px 0 0; margin:-32px -32px 28px -32px;"></div>
+                    <h3 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">Select Your Name</h3>
+                    <p style="color:#6666aa; font-size:0.85rem; margin-bottom:22px;">Click your name to sign in instantly — no password needed</p>
+
+                    @if (employees.Any())
+                    {
+                        <!-- Search -->
+                        <div style="position:relative; margin-bottom:16px;">
+                            <i class="bi bi-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#6666aa;"></i>
+                            <input @bind="empSearch" @bind:event="oninput" placeholder="Search your name..."
+                                   style="width:100%; padding:10px 12px 10px 36px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.88rem; box-sizing:border-box;" />
+                        </div>
+
+                        <!-- Employee cards grid -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:360px; overflow-y:auto; padding-right:4px;">
+                            @foreach (var emp in FilteredEmployees())
+                            {
+                                bool selected = selectedEmpId == emp.Id;
+                                <button @onclick="() => QuickLogin(emp)"
+                                        style="background:@(selected ? "linear-gradient(135deg,rgba(67,97,238,0.3),rgba(114,9,183,0.3))" : "#0f0f1a");
+                                               border:@(selected ? "2px solid #4361ee" : "1px solid #2a2a4a");
+                                               border-radius:10px; padding:14px 12px; cursor:pointer; text-align:left; transition:all 0.15s;
+                                               display:flex; align-items:center; gap:10px;">
+                                    <div style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#4361ee,#7209b7); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.85rem; flex-shrink:0;">
+                                        @Initials(emp.FullName)
+                                    </div>
+                                    <div style="overflow:hidden;">
+                                        <div style="color:#e0e0ff; font-weight:600; font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@emp.FullName</div>
+                                        <div style="color:#6666aa; font-size:0.72rem;">@emp.EmployeeId</div>
+                                        <div style="color:#4361ee; font-size:0.7rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@(emp.Department?.Name ?? "")</div>
+                                    </div>
+                                </button>
+                            }
+                        </div>
+
+                        @if (!FilteredEmployees().Any())
+                        {
+                            <div style="text-align:center; color:#4a4a6a; padding:24px;">
+                                <i class="bi bi-person-x" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+                                No employee found
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div style="text-align:center; color:#6666aa; padding:32px;">
+                            <i class="bi bi-hourglass-split" style="font-size:2rem; display:block; margin-bottom:8px; color:#4361ee;"></i>
+                            Loading employees...
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div style="margin-top:14px; color:#ef4444; font-size:0.83rem; padding:10px 14px; background:rgba(239,68,68,0.1); border-radius:8px; border:1px solid rgba(239,68,68,0.2);">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@error
+                        </div>
+                    }
                 </div>
             }
 
-            <button @onclick="DoLogin" disabled="@loading"
-                    style="width:100%; padding:13px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; font-size:1rem; cursor:pointer; margin-top:4px;">
-                @(loading ? "Signing in..." : "Sign In →")
-            </button>
+            <!-- ══ ADMIN TAB — email + password ══ -->
+            else
+            {
+                <div style="background:#1a1a2e; border-radius:14px; padding:32px; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+                    <div style="height:4px; background:linear-gradient(90deg,#4361ee,#7209b7); border-radius:4px 4px 0 0; margin:-32px -32px 28px -32px;"></div>
+                    <h3 style="color:#e0e0ff; font-weight:700; margin-bottom:4px;">Admin Login</h3>
+                    <p style="color:#6666aa; font-size:0.85rem; margin-bottom:24px;">Enter your admin credentials</p>
 
-            <div style="text-align:center; margin-top:20px; color:#3a3a6a; font-size:0.75rem; padding:8px; background:#0f0f1a; border-radius:6px;">
-                Default: admin@krd.com / Admin123
-            </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:6px;">Email Address</label>
+                        <input @bind="adminEmail" @bind:event="oninput" type="email"
+                               placeholder="admin@krd.com"
+                               style="width:100%; padding:12px 14px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.92rem; box-sizing:border-box;"
+                               @onkeydown="HandleKey" />
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label style="color:#8888aa; font-size:0.78rem; font-weight:600; display:block; margin-bottom:6px;">Password</label>
+                        <input @bind="adminPwd" @bind:event="oninput" type="password"
+                               placeholder="Enter password"
+                               style="width:100%; padding:12px 14px; background:#0f0f1a; border:1px solid #2a2a4a; border-radius:8px; color:#e0e0ff; font-size:0.92rem; box-sizing:border-box;"
+                               @onkeydown="HandleKey" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div style="color:#ef4444; font-size:0.83rem; margin-bottom:12px; padding:10px 14px; background:rgba(239,68,68,0.1); border-radius:8px;">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@error
+                        </div>
+                    }
+
+                    <button @onclick="AdminLogin" disabled="@loading"
+                            style="width:100%; padding:13px; background:linear-gradient(135deg,#4361ee,#7209b7); border:none; border-radius:8px; color:white; font-weight:700; font-size:1rem; cursor:pointer;">
+                        @(loading ? "Signing in..." : "Sign In →")
+                    </button>
+
+                    <div style="text-align:center; margin-top:16px; color:#3a3a5a; font-size:0.73rem; padding:8px; background:#0f0f1a; border-radius:6px;">
+                        Default: admin@krd.com / Admin123
+                    </div>
+                </div>
+            }
+
         </div>
     </div>
 </div>
 
 @code {
-    private bool   isAdmin    = true;
-    private string identifier = "";
-    private string password   = "";
+    private string tab = "emp";
+    private string empSearch = "";
+    private int selectedEmpId = 0;
+    private string adminEmail = "", adminPwd = "";
     private string? error;
-    private bool   loading;
+    private bool loading;
+    private List<Employee> employees = new();
 
     protected override void OnInitialized()
     {
         if (Auth.IsLoggedIn)
+        {
             Nav.NavigateTo("/dashboard", forceLoad: false);
+            return;
+        }
+        employees = Svc.GetAllEmployees(activeOnly: true);
+    }
+
+    private IEnumerable<Employee> FilteredEmployees() =>
+        string.IsNullOrEmpty(empSearch)
+            ? employees
+            : employees.Where(e =>
+                e.FullName.Contains(empSearch, StringComparison.OrdinalIgnoreCase) ||
+                e.EmployeeId.Contains(empSearch, StringComparison.OrdinalIgnoreCase));
+
+    private void QuickLogin(Employee emp)
+    {
+        error = null;
+        selectedEmpId = emp.Id;
+        bool ok = Auth.LoginEmployeeDirect(emp.Id);
+        if (ok)
+            Nav.NavigateTo("/dashboard", forceLoad: false);
+        else
+            error = "Login failed. Please try again.";
+    }
+
+    private async Task AdminLogin()
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPwd))
+        { error = "Please enter email and password."; return; }
+        loading = true;
+        await Task.Delay(50);
+        bool ok = Auth.LoginAdmin(adminEmail.Trim(), adminPwd);
+        loading = false;
+        if (ok) Nav.NavigateTo("/dashboard", forceLoad: false);
+        else    error = "Invalid email or password.";
     }
 
     private async Task HandleKey(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") await DoLogin();
+        if (e.Key == "Enter") await AdminLogin();
     }
 
-    private async Task DoLogin()
+    private string Initials(string name)
     {
-        error = null;
-        if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(password))
-        { error = "Please fill in all fields."; return; }
-
-        loading = true;
-        await Task.Delay(50);
-
-        bool ok = isAdmin
-            ? Auth.LoginAdmin(identifier.Trim(), password)
-            : Auth.LoginEmployee(identifier.Trim(), password);
-
-        loading = false;
-        if (ok)
-            Nav.NavigateTo("/dashboard", forceLoad: false);
-        else
-            error = isAdmin ? "Invalid email or password." : "Invalid Employee ID or password.";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length == 0 ? "?" : p.Length == 1 ? p[0][0].ToString().ToUpper()
+            : $"{p[0][0]}{p[^1][0]}".ToUpper();
     }
 }

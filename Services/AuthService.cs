@@ -24,6 +24,20 @@ public class AuthService
 
     public AuthService(AppDbContext db) => _db = db;
 
+    /// <summary>Employee clicks their name — no password required.</summary>
+    public bool LoginEmployeeDirect(int employeeId)
+    {
+        var emp = _db.Employees
+            .Include(e => e.Department)
+            .FirstOrDefault(e => e.Id == employeeId && e.IsActive);
+        if (emp == null) return false;
+        emp.LastLogin   = DateTime.Now;
+        _db.SaveChanges();
+        CurrentEmployee = emp;
+        CurrentAdmin    = null;
+        return true;
+    }
+
     public bool LoginAdmin(string email, string password)
     {
         // Create a fresh context query (avoid stale tracked entities)
