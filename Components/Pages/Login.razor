@@ -29,22 +29,22 @@
 
             <!-- Tab toggle -->
             <div style="display:flex; background:#1a1a2e; border-radius:12px; padding:5px; margin-bottom:28px; border:1px solid #2a2a4a;">
-                <button @onclick="() => { tab=\"emp\"; error=null; }"
+                <button @onclick="() => { isEmpTab=true; error=null; }"
                         style="flex:1; padding:12px; border:none; border-radius:9px; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s;
-                               background:@(tab=="emp" ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
-                               color:@(tab=="emp" ? "white" : "#6666aa");">
+                               background:@(isEmpTab ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
+                               color:@(isEmpTab ? "white" : "#6666aa");">
                     <i class="bi bi-people me-2"></i>Employee
                 </button>
-                <button @onclick="() => { tab=\"admin\"; error=null; }"
+                <button @onclick="() => { isEmpTab=false; error=null; }"
                         style="flex:1; padding:12px; border:none; border-radius:9px; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s;
-                               background:@(tab=="admin" ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
-                               color:@(tab=="admin" ? "white" : "#6666aa");">
+                               background:@(!isEmpTab ? "linear-gradient(135deg,#4361ee,#7209b7)" : "transparent");
+                               color:@(!isEmpTab ? "white" : "#6666aa");">
                     <i class="bi bi-shield-lock me-2"></i>Admin
                 </button>
             </div>
 
             <!-- ══ EMPLOYEE TAB — just pick name, no password ══ -->
-            @if (tab == "emp")
+            @if (isEmpTab)
             {
                 <div style="background:#1a1a2e; border-radius:14px; padding:32px; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
                     <div style="height:4px; background:linear-gradient(90deg,#4361ee,#7209b7); border-radius:4px 4px 0 0; margin:-32px -32px 28px -32px;"></div>
@@ -107,7 +107,7 @@
                 </div>
             }
 
-            <!-- ══ ADMIN TAB — email + password ══ -->
+    <!-- ══ ADMIN TAB — email + password ══ -->
             else
             {
                 <div style="background:#1a1a2e; border-radius:14px; padding:32px; border:1px solid #2a2a4a; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
@@ -154,6 +154,7 @@
 
 @code {
     private string tab = "emp";
+    private bool isEmpTab = true;
     private string empSearch = "";
     private int selectedEmpId = 0;
     private string adminEmail = "", adminPwd = "";
