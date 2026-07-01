@@ -10,6 +10,17 @@ public static class DatabaseHelper
     public static string GetDatabasePath()
     {
         if (_dbPath != null) return _dbPath;
+
+        // Use env variable for Docker/cloud deployments
+        var envPath = Environment.GetEnvironmentVariable("KRD_DB_PATH");
+        if (!string.IsNullOrEmpty(envPath))
+        {
+            var dir = Path.GetDirectoryName(envPath)!;
+            Directory.CreateDirectory(dir);
+            _dbPath = envPath;
+            return _dbPath;
+        }
+
         string folder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "KRD", "AttendanceWeb");

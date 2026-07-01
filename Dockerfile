@@ -1,16 +1,24 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-ENV ASPNETCORE_URLS=http://+:8080
-
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# ── Build stage ────────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
+
 COPY ["KRD.AttendanceWeb.csproj", "."]
 RUN dotnet restore
-COPY . .
-RUN dotnet publish -c Release -o /app/publish --no-restore
 
-FROM base AS final
+COPY . .
+RUN dotnet publish -c Release -o /app/publish
+
+# ── Runtime stage ───────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
+
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+# SQLite DB will be stored in /app/data inside the container
+RUN mkdir -p /app/data
+ENV KRD_DB_PATH=/app/data/KRDAttendanceWeb.db
+
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "KRD.AttendanceWeb.dll"]
